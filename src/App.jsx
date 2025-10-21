@@ -1,8 +1,13 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./pages/login";
+
 function App() {
   return (
-    <h1 className="text-4xl font-bold text-blue-500">
-      Tailwind BERHASIL ✅
-    </h1>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Login />} />
+      </Routes>
+    </Router>
   );
 }
 
