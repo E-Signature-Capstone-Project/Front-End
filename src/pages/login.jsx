@@ -1,5 +1,9 @@
 import { useState } from "react";
+<<<<<<< HEAD
 import { Link, useNavigate } from "react-router-dom";
+=======
+import { Link } from "react-router-dom";
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
 import { FaEye, FaEyeSlash } from "react-icons/fa"; 
 
 export default function Login() {
@@ -7,7 +11,10 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
+<<<<<<< HEAD
   const navigate = useNavigate();
+=======
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -15,6 +22,7 @@ export default function Login() {
       setError("Email dan password harus diisi");
       return;
     }
+<<<<<<< HEAD
     
     // TAMBAHKAN INI: Simpan data ke localStorage
     localStorage.setItem('token', 'demo-token-12345');
@@ -22,11 +30,19 @@ export default function Login() {
     
     // Login berhasil, redirect ke baseline
     navigate("/baseline");
+=======
+    alert(`Login berhasil!\nEmail: ${email}`);
+    setError("");
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
   };
 
   return (
     <div className="flex min-h-screen">
+<<<<<<< HEAD
       <aside className="w-1/5 bg-[#AD1F10] flex flex-col items-start py-8 px-8 text-white">
+=======
+      <aside className="w-1/3 bg-[#AD1F10] flex flex-col items-start py-8 px-8 text-white">
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
         <h1 className="text-3xl font-bold mb-4">E-Signature</h1>
         <p className="font-semibold text-lg mb-1">E-Signature System</p>
         <p className="text-sm opacity-90">Fast • Secure • Paperless</p>
@@ -45,6 +61,10 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+<<<<<<< HEAD
+=======
+              {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
             </div>
 
             <div className="relative">
@@ -56,6 +76,7 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button
+<<<<<<< HEAD
                 type="button"
                 onClick={() => setPasswordVisible(!passwordVisible)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -66,6 +87,16 @@ export default function Login() {
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
+=======
+              type="button"
+               onClick={() => setPasswordVisible(!passwordVisible)}
+               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+               >
+                {passwordVisible ? <FaEyeSlash /> : <FaEye />}
+                </button>
+            </div>
+
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
             <div className="flex justify-end">
               <a href="#" className="text-sm text-gray-700 hover:underline">
                 Forgot Password ?
@@ -92,4 +123,8 @@ export default function Login() {
       </main>
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6

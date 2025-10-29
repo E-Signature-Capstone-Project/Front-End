@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+<<<<<<< HEAD
 import { Link, useNavigate } from "react-router-dom"; 
 
 export default function Register() {
   const navigate = useNavigate(); 
+=======
+import { Link, useNavigate } from "react-router-dom";
+
+export default function Register() {
+  const navigate = useNavigate();
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
 
   const [formData, setFormData] = useState({
     email: '',
@@ -42,6 +49,7 @@ export default function Register() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
+<<<<<<< HEAD
       // Simpan data user ke localStorage (opsional)
       localStorage.setItem('registeredUser', JSON.stringify({
         email: formData.email,
@@ -51,13 +59,21 @@ export default function Register() {
       alert('✅ Registration successful! Please login.');
       
       // Redirect ke halaman login
+=======
+      console.log('Form submitted:', formData);
+      // langsung pindah ke halaman login
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
       navigate("/");
     }
   };
 
   return (
     <div className="flex min-h-screen">
+<<<<<<< HEAD
       <div className="w-1/5 bg-[#AD1F10] p-8 flex flex-col items-start text-white">
+=======
+      <div className="w-1/3 bg-[#AD1F10] p-8 flex flex-col items-start text-white">
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
         <h1 className="text-3xl font-bold mb-8">E-Signature</h1>
         <p className="font-semibold text-lg mb-1">Your Digital Signature System</p>
         <p className="text-sm opacity-90">Fast • Secure • Paperless</p>
@@ -79,6 +95,7 @@ export default function Register() {
                 className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none"
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+<<<<<<< HEAD
             </div>
 
             <div className="relative">
@@ -141,6 +158,68 @@ export default function Register() {
             </div>
           </form>
 
+=======
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                name="username"
+                placeholder="Username"
+                value={formData.username}
+                onChange={handleChange}
+                className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg outline-none"
+              />
+              {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
+            </div>
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+            </div>
+
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+              {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-[#AD1F10] text-white font-semibold py-2 rounded-lg shadow hover:bg-red-800 transition-colors"
+            >
+              Sign Up
+            </button>
+          </form>
+
+>>>>>>> 6cd94f456933ce04e0c990466642c9cc92f3b3f6
           <p className="text-center text-gray-900 mt-4">
             Already have an account?{' '}
             <Link to="/" className="font-semibold hover:underline text-[#AD1F10]">
