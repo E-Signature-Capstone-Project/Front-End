@@ -1,139 +1,198 @@
-import React from "react";
-import { FaArrowLeft, FaPlus, FaExchangeAlt } from "react-icons/fa";
+import React, { useRef, useState } from "react";
+import {
+  FaArrowLeft,
+  FaPlus,
+  FaExchangeAlt,
+  FaPaintBrush,
+  FaUpload,
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+  const replaceInputRef = useRef(null);
+  const canvasRef = useRef(null);
 
-  // contoh data signature user
-  const [signatures, setSignatures] = React.useState([
-    { id: 1, src: "https://via.placeholder.com/150x100?text=Signature+1" },
-    { id: 2, src: "https://via.placeholder.com/150x100?text=Signature+2" },
-    { id: 3, src: "https://via.placeholder.com/150x100?text=Signature+3" },
-  ]);
+  const [signatures, setSignatures] = useState([]);
+  const [replaceId, setReplaceId] = useState(null);
+  const [showOptions, setShowOptions] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
 
-  // 🔙 Tombol kembali ke Dashboard
-  const handleBack = () => {
-    navigate("/"); // kembali ke dashboard
-  };
-
-  // 🚪 Tombol Logout
+  const handleBack = () => navigate("/dashboard"); 
   const handleLogout = () => {
-    if (window.confirm("Yakin ingin logout?")) {
-      // di sini bisa tambahkan logika hapus token, session, dll
-      navigate("/"); // balik ke dashboard (atau halaman login nanti)
-    }
+    if (window.confirm("Yakin ingin logout?")) navigate("/login"); 
   };
 
-  // 🔄 Tombol ganti signature
-  const handleReplaceSignature = (id) => {
-    const newUrl = prompt("Masukkan URL signature baru:");
-    if (newUrl) {
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (signatures.length >= 5) return alert("Maksimal 5 signature!");
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSignatures((prev) => [...prev, { id: prev.length + 1, src: event.target.result }]);
+      setShowOptions(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleReplaceUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file || replaceId === null) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
       setSignatures((prev) =>
-        prev.map((sig) =>
-          sig.id === id ? { ...sig, src: newUrl } : sig
-        )
+        prev.map((sig) => (sig.id === replaceId ? { ...sig, src: event.target.result } : sig))
       );
-    }
+      setReplaceId(null);
+    };
+    reader.readAsDataURL(file);
   };
 
-  // ➕ Tambah signature baru
-  const handleAddSignature = () => {
-    if (signatures.length >= 5) {
-      alert("Kamu sudah mencapai batas maksimal 5 signature!");
-      return;
-    }
-    const newUrl = prompt("Masukkan URL signature baru:");
-    if (newUrl) {
-      setSignatures((prev) => [
-        ...prev,
-        { id: prev.length + 1, src: newUrl },
-      ]);
-    }
+  const startDrawing = (e) => {
+    setIsDrawing(true);
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.beginPath();
+    ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+    ctx.strokeStyle = "#003E9C"; // ganti warna garis jadi biru
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => setIsDrawing(false);
+
+  const handleSaveDrawing = () => {
+    if (signatures.length >= 5) return alert("Maksimal 5 signature!");
+    setSignatures((prev) => [...prev, { id: prev.length + 1, src: canvasRef.current.toDataURL("image/png") }]);
+    setIsDrawingMode(false);
+  };
+
+  const handleClearCanvas = () => {
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFB] flex flex-col items-center font-sans text-gray-800">
-      {/* HEADER */}
-      <div className="w-full bg-white shadow-sm py-4 px-6 flex items-center justify-between fixed top-0">
-        <button
-          onClick={handleBack}
-          className="flex items-center text-gray-600 hover:text-gray-800 transition"
-        >
-          <FaArrowLeft className="mr-2" />
-          <span className="font-medium">Profile</span>
-        </button>
-      </div>
+    <div className="min-h-screen bg-[#F8FAFB] flex font-sans">
 
-      {/* MAIN CONTENT */}
-      <div className="mt-20 w-full max-w-md bg-transparent flex flex-col items-center px-6">
-        {/* Profile Picture */}
-        <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-12 w-12 text-gray-500"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
+      {/* LEFT PROFILE PANEL */}
+      <div className="w-[260px] bg-white h-screen shadow-md border-r border-gray-200 p-6 flex flex-col items-center sticky top-0">
+        <div className="w-28 h-28 rounded-full bg-gray-200 flex items-center justify-center mb-4">
+          <svg className="h-14 w-14 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 12c2.67 0 8 1.34 8 4v4H4v-4c0-2.66 5.33-4 8-4z" />
             <circle cx="12" cy="7" r="4" />
           </svg>
         </div>
 
-        <h2 className="text-xl font-semibold">Ardian</h2>
-        <p className="text-gray-500 text-sm mb-6">ardian@gmail.com</p>
+        <h2 className="text-lg font-semibold">Ardian</h2>
+        <p className="text-gray-500 text-sm mb-8">ardian@gmail.com</p>
 
-        {/* Logout Button */}
         <button
-          onClick={handleLogout}
-          className="w-full bg-[#AD1F10] hover:bg-[#8b160f] transition text-white font-semibold py-3 rounded-full flex items-center justify-center gap-2 mb-8"
+          onClick={handleBack}
+          className="w-full mb-2 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2"
         >
-          <FaExchangeAlt />
-          <span>Log out</span>
+          <FaArrowLeft />
+          Back
         </button>
 
-        {/* Signature Section */}
-        <div className="w-full">
-          <h3 className="text-lg font-semibold mb-3">Signature Baseline</h3>
+        <button
+          onClick={handleLogout}
+          className="w-full bg-[#003E9C] hover:bg-[#002A6B] text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2"
+        >
+          <FaExchangeAlt />
+          Log out
+        </button>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
+      {/* RIGHT MAIN CONTENT */}
+      <div className="flex-1 p-10">
+        <h1 className="text-2xl font-semibold mb-6">Signature Baseline</h1>
+
+        <div className="bg-white p-6 shadow rounded-xl border border-gray-200">
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mb-6">
             {signatures.map((sig) => (
               <div
                 key={sig.id}
-                className="relative bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+                className="relative aspect-square w-40 border rounded-lg shadow-sm bg-gray-50 flex items-center justify-center"
               >
-                <img
-                  src={sig.src}
-                  alt={`Signature ${sig.id}`}
-                  className="w-full h-32 object-contain p-2"
-                />
+                <img src={sig.src} alt="" className="max-w-full max-h-full object-contain p-2" />
                 <button
-                  onClick={() => handleReplaceSignature(sig.id)}
-                  className="absolute top-2 right-2 bg-white border border-gray-200 rounded-full p-2 shadow-sm hover:bg-gray-100 transition"
-                  aria-label="replace-signature"
+                  onClick={() => {
+                    setReplaceId(sig.id);
+                    replaceInputRef.current.click();
+                  }}
+                  className="absolute top-2 right-2 bg-white border p-1 rounded-full shadow hover:bg-gray-100"
                 >
-                  <FaExchangeAlt className="text-gray-600 text-sm" />
+                  <FaExchangeAlt size={14} className="text-[#003E9C]" />
                 </button>
               </div>
             ))}
 
-            {/* Add Signature */}
+            {/* ADD BUTTON */}
             <button
-              onClick={handleAddSignature}
-              className="bg-white border border-dashed border-gray-300 rounded-xl shadow-sm flex flex-col items-center justify-center h-32 hover:bg-gray-50 transition"
+              onClick={() => setShowOptions(!showOptions)}
+              className="aspect-square w-40 border border-dashed rounded-lg flex flex-col items-center justify-center text-gray-500 hover:bg-gray-50"
             >
-              <FaPlus className="text-[#AD1F10] text-xl mb-1" />
-              <span className="text-sm font-medium text-gray-600">
-                Tambah Signature
-              </span>
+              <FaPlus className="text-[#003E9C] mb-1" />
+              Tambah
             </button>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mb-10">
-            Maksimal 5 signature. Kamu bisa menambah dan mengganti.
-          </p>
+          {showOptions && (
+            <div className="flex gap-3 mb-4">
+              <button
+                onClick={() => fileInputRef.current.click()}
+                className="px-3 py-2 border rounded-md flex items-center gap-2 text-sm"
+              >
+                <FaUpload className="text-[#003E9C]" /> Upload
+              </button>
+
+              <button
+                onClick={() => { setIsDrawingMode(true); setShowOptions(false); }}
+                className="px-3 py-2 border rounded-md flex items-center gap-2 text-sm"
+              >
+                <FaPaintBrush className="text-[#003E9C]" /> Draw
+              </button>
+            </div>
+          )}
+
+          {isDrawingMode && (
+            <div className="flex flex-col items-center border p-4 rounded-md">
+              <canvas
+                ref={canvasRef}
+                width={550}
+                height={230}
+                className="border rounded-md bg-gray-50 cursor-crosshair"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+              />
+              <div className="flex gap-2 mt-4">
+                <button onClick={handleClearCanvas} className="px-4 py-2 bg-gray-200 rounded-md">Clear</button>
+                <button onClick={handleSaveDrawing} className="px-4 py-2 bg-[#003E9C] text-white rounded-md">Save</button>
+                <button onClick={() => setIsDrawingMode(false)} className="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          <p className="text-sm text-gray-500 mt-6">Maksimal 5 signature.</p>
         </div>
       </div>
+
+      {/* Hidden Inputs */}
+      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+      <input type="file" accept="image/*" ref={replaceInputRef} onChange={handleReplaceUpload} className="hidden" />
     </div>
   );
 }
