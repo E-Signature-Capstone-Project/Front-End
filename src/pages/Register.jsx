@@ -43,25 +43,25 @@ export default function Register() {
     e.preventDefault();
     if (validateForm()) {
       console.log('Form submitted:', formData);
-      // langsung pindah ke halaman login
       navigate("/");
     }
   };
 
   return (
     <div className="flex min-h-screen">
-      <div className="w-1/3 bg-[#AD1F10] p-8 flex flex-col items-start text-white">
+      {/* Sidebar */}
+      <div className="w-1/3 bg-[#003E9C] p-8 flex flex-col items-start text-white">
         <h1 className="text-3xl font-bold mb-8">E-Signature</h1>
         <p className="font-semibold text-lg mb-1">Your Digital Signature System</p>
         <p className="text-sm opacity-90">Fast • Secure • Paperless</p>
       </div>
 
+      {/* Form Section */}
       <div className="flex-1 flex items-center justify-center bg-[#E6E6E6] p-8">
         <div className="w-full max-w-md">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">Create Your Account</h2>
 
           <form className="bg-white p-8 rounded-lg shadow-md space-y-4" onSubmit={handleSubmit}>
-
             <div className="relative">
               <input
                 type="email"
@@ -126,7 +126,7 @@ export default function Register() {
 
             <button
               type="submit"
-              className="w-full bg-[#AD1F10] text-white font-semibold py-2 rounded-lg shadow hover:bg-red-800 transition-colors"
+              className="w-full bg-[#003E9C] text-white font-semibold py-2 rounded-lg shadow hover:bg-[#002F6C] transition-colors"
             >
               Sign Up
             </button>
@@ -134,7 +134,7 @@ export default function Register() {
 
           <p className="text-center text-gray-900 mt-4">
             Already have an account?{' '}
-            <Link to="/" className="font-semibold hover:underline text-[#AD1F10]">
+            <Link to="/" className="font-semibold hover:underline text-[#003E9C]">
               Log In
             </Link>
           </p>

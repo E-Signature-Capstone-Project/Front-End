@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // ✅ tambahkan useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa"; 
 
 export default function Login() {
@@ -7,7 +7,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // ✅ inisialisasi navigate
+  const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -17,11 +17,10 @@ export default function Login() {
       return;
     }
 
-    // ✅ contoh validasi sederhana
     if (email === "ardian@gmail.com" && password === "1234") {
       alert(`Login berhasil!\nSelamat datang, ${email}`);
       setError("");
-      navigate("/dashboard"); // ✅ pindah ke Dashboard
+      navigate("/dashboard");
     } else {
       setError("Email atau password salah");
     }
@@ -30,7 +29,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="w-1/3 bg-[#AD1F10] flex flex-col items-start py-8 px-8 text-white">
+      <aside className="w-1/3 bg-[#003E9C] flex flex-col items-start py-8 px-8 text-white">
         <h1 className="text-3xl font-bold mb-4">E-Signature</h1>
         <p className="font-semibold text-lg mb-1">E-Signature System</p>
         <p className="text-sm opacity-90">Fast • Secure • Paperless</p>
@@ -71,7 +70,7 @@ export default function Login() {
             </div>
 
             <div className="flex justify-end">
-              <a href="#" className="text-sm text-gray-700 hover:underline">
+              <a href="#" className="text-sm text-gray-700 hover:text-[#003E9C] hover:underline transition-colors">
                 Forgot Password ?
               </a>
             </div>
@@ -79,7 +78,7 @@ export default function Login() {
             <div className="flex justify-center">
               <button
                 type="submit"
-                className="bg-[#AD1F10] text-white px-8 py-2 rounded-md font-medium shadow hover:bg-[#660000] transition-colors"
+                className="bg-[#003E9C] text-white px-8 py-2 rounded-md font-medium shadow hover:bg-[#002F6C] transition-colors"
               >
                 Log In
               </button>
@@ -88,7 +87,7 @@ export default function Login() {
 
           <p className="mt-6 text-sm text-gray-900 text-center">
             Do not have an account?{" "}
-            <Link to="/register" className="font-semibold hover:underline text-[#AD1F10]">
+            <Link to="/register" className="font-semibold hover:underline text-[#003E9C]">
               Sign Up now
             </Link>
           </p>
