@@ -1,0 +1,10 @@
+import signatureImg from '../assets/images/signature.png';
+
+function LoginLeft() {
+  return (
+    <div style={{ backgroundColor: 'red', textAlign: 'center', padding: '20px' }}>
+      <img src={signatureImg} alt="E-Signature" style={{ width: '80%', height: 'auto' }} />
+      <h2 style={{ color: 'white' }}>E-Signature</h2>
+    </div>
+  );
+}
