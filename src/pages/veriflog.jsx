@@ -1,42 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { FaArrowLeft, FaCheckCircle, FaTimesCircle, FaFileAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/sidebar"; // ⬅️ pastikan huruf S besar ya!
+import { FaCheckCircle, FaTimesCircle, FaFileAlt } from "react-icons/fa";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export default function VerifLog() {
-  const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // ambil data dari localStorage
   useEffect(() => {
     const storedLogs = JSON.parse(localStorage.getItem("verifLogs")) || [];
     setLogs(storedLogs);
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#EEF3FA] flex flex-col items-center">
-      {/* HEADER */}
-      <header className="w-full bg-white border-b shadow-sm py-4 px-10 flex items-center">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-gray-600 hover:text-blue-700 flex items-center gap-2"
-        >
-          <FaArrowLeft size={18} />
-          <span className="font-medium text-sm"></span>
-        </button>
+    <div className="flex min-h-screen bg-[#EEF3FA]">
 
-        <h1 className="ml-6 text-xl font-semibold text-gray-800">Verifikasi Log</h1>
-      </header>
+      {/* SIDEBAR */}
+      <Sidebar pathname={location.pathname} navigate={navigate} />
 
       {/* MAIN CONTENT */}
-      <main className="flex flex-col items-center justify-start w-full flex-1 p-10">
-        <div className="w-[70%] bg-white border shadow-md rounded-xl p-6">
+      <div className="flex-1 p-10 ml-64">
+        <h1 className="text-2xl font-semibold mb-6 text-gray-800">
+          Verifikasi Log
+        </h1>
+
+        <div className="bg-white border shadow-md rounded-xl p-6 w-full">
           <h2 className="text-lg font-semibold mb-4 text-gray-800">
             Riwayat Dokumen yang Telah Ditandatangani
           </h2>
 
           {logs.length === 0 ? (
             <p className="text-gray-500 text-center py-10">
-              Belum ada dokumen yang diverifikasi 
+              Belum ada dokumen yang diverifikasi
             </p>
           ) : (
             <table className="w-full border-collapse">
@@ -48,6 +44,7 @@ export default function VerifLog() {
                   <th className="border-b py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
+
               <tbody>
                 {logs.map((log, index) => (
                   <tr
@@ -56,7 +53,8 @@ export default function VerifLog() {
                   >
                     <td className="py-3 px-4">{index + 1}</td>
                     <td className="py-3 px-4 flex items-center gap-2">
-                      <FaFileAlt className="text-blue-600" /> {log.name}
+                      <FaFileAlt className="text-blue-600" />
+                      {log.name}
                     </td>
                     <td className="py-3 px-4">{log.date}</td>
                     <td className="py-3 px-4 text-center">
@@ -76,7 +74,7 @@ export default function VerifLog() {
             </table>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

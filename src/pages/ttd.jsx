@@ -13,33 +13,31 @@ export default function Ttd() {
     setIsDrawing(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+
     ctx.beginPath();
     ctx.moveTo(
-      e.nativeEvent.offsetX ||
-        e.touches?.[0]?.clientX - canvas.offsetLeft,
-      e.nativeEvent.offsetY ||
-        e.touches?.[0]?.clientY - canvas.offsetTop
+      e.nativeEvent.offsetX || e.touches?.[0]?.clientX - canvas.offsetLeft,
+      e.nativeEvent.offsetY || e.touches?.[0]?.clientY - canvas.offsetTop
     );
   };
 
-  // Menggambar garis
+  // Proses menggambar
   const draw = (e) => {
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
+
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#000";
+
     ctx.lineTo(
-      e.nativeEvent.offsetX ||
-        e.touches?.[0]?.clientX - canvas.offsetLeft,
-      e.nativeEvent.offsetY ||
-        e.touches?.[0]?.clientY - canvas.offsetTop
+      e.nativeEvent.offsetX || e.touches?.[0]?.clientX - canvas.offsetLeft,
+      e.nativeEvent.offsetY || e.touches?.[0]?.clientY - canvas.offsetTop
     );
     ctx.stroke();
   };
 
-  // Selesai menggambar
   const stopDrawing = () => setIsDrawing(false);
 
   // Reset canvas
@@ -50,23 +48,39 @@ export default function Ttd() {
     setUploadedImage(null);
   };
 
-  // Upload tanda tangan (gambar)
+  // Upload gambar tanda tangan
   const handleUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = () => setUploadedImage(reader.result);
     reader.readAsDataURL(file);
   };
 
+  // Simpan dan lanjut
+  const handleNext = () => {
+    let finalSignature = uploadedImage;
+
+    // Jika pengguna menggambar → ambil dari canvas
+    if (!uploadedImage) {
+      const canvas = canvasRef.current;
+      finalSignature = canvas.toDataURL("image/png");
+    }
+
+    localStorage.setItem("signatureImage", finalSignature);
+    navigate("/posisi-ttd");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F5FAFF]">
       <div className="bg-white w-[360px] rounded-2xl shadow-lg p-6 flex flex-col items-center">
-        <h2 className="text-lg font-semibold text-gray-800 mb-5">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">
           Tanda Tangan
         </h2>
 
-        <div className="w-full h-48 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center mb-5 overflow-hidden">
+        {/* AREA CANVAS / PREVIEW */}
+        <div className="w-full h-48 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center mb-4 overflow-hidden">
           {!uploadedImage ? (
             <canvas
               ref={canvasRef}
@@ -90,44 +104,33 @@ export default function Ttd() {
           )}
         </div>
 
-        {/* Tombol kecil */}
-        <div className="flex justify-between w-full mb-5 text-sm">
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1.5 text-gray-600 hover:text-red-500 transition"
-          >
-            <FaRedoAlt className="text-base" /> Reset
-          </button>
+        {/* RESET BUTTON */}
+        <button
+          onClick={handleReset}
+          className="flex items-center gap-2 text-gray-700 self-end mb-4 hover:text-red-500 transition"
+        >
+          <FaRedoAlt /> Reset
+        </button>
 
-          <div className="flex gap-2">
-            <label className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-blue-50 cursor-pointer transition">
-              <FaImage className="text-base" />
-              <span>Gambar</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleUpload}
-              />
-            </label>
+        {/* BUTTON DRAW / UPLOAD */}
+        <div className="flex justify-between w-full mb-5">
+          <label className="flex-1 mx-1 py-2 rounded-xl border text-center border-gray-300 cursor-pointer hover:bg-blue-50 transition text-sm font-medium flex items-center justify-center gap-2">
+            <FaImage />
+            Gambar
+            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+          </label>
 
-            <label className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-blue-50 cursor-pointer transition">
-              <FaUpload className="text-base" />
-              <span>Upload</span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleUpload}
-              />
-            </label>
-          </div>
+          <label className="flex-1 mx-1 py-2 rounded-xl border text-center border-gray-300 cursor-pointer hover:bg-blue-50 transition text-sm font-medium flex items-center justify-center gap-2">
+            <FaUpload />
+            Upload
+            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+          </label>
         </div>
 
-        {/* Tombol lanjut */}
+        {/* NEXT BUTTON */}
         <button
-          onClick={() => navigate("/posisi-ttd")}
-          className="w-full bg-[#3B82F6] hover:bg-[#2563EB] transition text-white font-semibold py-3 rounded-xl text-base shadow-sm"
+          onClick={handleNext}
+          className="w-full bg-[#3B82F6] hover:bg-[#2563EB] transition text-white font-semibold py-3 rounded-xl text-base shadow-md"
         >
           Lanjut Pilih Posisi
         </button>
