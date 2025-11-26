@@ -20,7 +20,15 @@ export default function Profile() {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const handleBack = () => navigate("/dashboard"); 
+  // FIX tombol Back sesuai halaman sebelumnya
+  const handleBack = () => {
+    if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1); // kembali ke halaman sebelumnya
+    } else {
+      navigate("/dashboard"); // fallback jika tidak ada riwayat
+    }
+  };
+
   const handleLogout = () => {
     if (window.confirm("Yakin ingin logout?")) navigate("/login"); 
   };
@@ -63,7 +71,7 @@ export default function Profile() {
     if (!isDrawing) return;
     const ctx = canvasRef.current.getContext("2d");
     ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-    ctx.strokeStyle = "#003E9C"; // ganti warna garis jadi biru
+    ctx.strokeStyle = "#003E9C";
     ctx.lineWidth = 2;
     ctx.stroke();
   };
