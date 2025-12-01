@@ -26,6 +26,11 @@ export default function BaselineSign() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState(null);
+  
+  // ✅ Pen thickness only (no color)
+  const [penThickness, setPenThickness] = useState(2);
+  
   const maxSignatures = 5;
 
   // ✅ API Base URL - sesuaikan dengan backend Anda
@@ -48,7 +53,6 @@ export default function BaselineSign() {
     try {
       const token = localStorage.getItem('token');
       
-      // ✅ FIX: Gunakan endpoint yang sesuai dengan routes backend
       const response = await fetch(`${API_BASE_URL}/signature_baseline/`, {
         method: 'GET',
         headers: {
@@ -58,7 +62,6 @@ export default function BaselineSign() {
       });
 
       if (!response.ok) {
-        // Jika 404 atau error lain, anggap belum ada baseline
         if (response.status === 404) {
           console.log('ℹ️ Belum ada baseline');
           setSignatures([]);
@@ -71,11 +74,9 @@ export default function BaselineSign() {
       const data = await response.json();
       console.log('📥 Fetched signatures:', data);
 
-      // ✅ Response backend: { count, baselines: [...] }
       if (data.baselines && Array.isArray(data.baselines)) {
         const formattedSignatures = data.baselines.map((sig, index) => ({
           step: index + 1,
-          // ✅ Backend menyimpan path relatif, tambahkan base URL
           image: `${API_BASE_URL}/${sig.sign_image}`,
           baseline_id: sig.baseline_id
         }));
@@ -90,28 +91,31 @@ export default function BaselineSign() {
       }
     } catch (error) {
       console.error('❌ Error fetching signatures:', error);
-      // Jangan tampilkan error jika memang belum ada data
       setSignatures([]);
       setCurrentStep(1);
     }
   };
 
-  // Setup canvas
+  // Setup canvas dengan pen thickness
   useEffect(() => {
     if (showDrawBox && canvasRef.current) {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#000000'; // Always black
+      ctx.lineWidth = penThickness;
       ctx.lineCap = 'round';
     }
-  }, [showDrawBox]);
+  }, [showDrawBox, penThickness]);
 
   // Mouse events for drawing
   const startDrawing = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
+    
+    ctx.strokeStyle = '#000000'; // Always black
+    ctx.lineWidth = penThickness;
+    ctx.lineCap = 'round';
     
     ctx.beginPath();
     ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
@@ -140,6 +144,10 @@ export default function BaselineSign() {
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
     const touch = e.touches[0];
+    
+    ctx.strokeStyle = '#000000'; // Always black
+    ctx.lineWidth = penThickness;
+    ctx.lineCap = 'round';
     
     ctx.beginPath();
     ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
@@ -175,7 +183,6 @@ export default function BaselineSign() {
   const handleUploadSignature = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // ✅ Validasi tipe file
       if (!file.type.startsWith('image/')) {
         setError('File harus berupa gambar (PNG, JPG, dll)');
         Toast.fire({
@@ -187,7 +194,6 @@ export default function BaselineSign() {
         return;
       }
 
-      // ✅ Validasi ukuran file (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('Ukuran file maksimal 5MB');
         Toast.fire({
@@ -203,6 +209,7 @@ export default function BaselineSign() {
       reader.onloadend = () => {
         setCurrentSignature(reader.result);
         setError('');
+        setErrorDetails(null);
       };
       reader.onerror = () => {
         setError('Gagal membaca file');
@@ -245,6 +252,7 @@ export default function BaselineSign() {
 
     setLoading(true);
     setError('');
+    setErrorDetails(null);
 
     try {
       const token = localStorage.getItem('token');
@@ -253,30 +261,25 @@ export default function BaselineSign() {
         throw new Error('Token tidak ditemukan. Silakan login kembali.');
       }
       
-      // Convert base64 to file
       const file = base64ToFile(
         currentSignature, 
         `signature_${currentStep}_${Date.now()}.png`
       );
       
-      // Create FormData
       const formData = new FormData();
-      formData.append('image', file); // ✅ field name harus 'image' sesuai backend
+      formData.append('image', file);
 
       console.log('📤 Uploading signature step:', currentStep);
       console.log('📤 File size:', file.size, 'bytes');
 
-      // ✅ FIX: Gunakan endpoint yang benar sesuai routes
       const response = await fetch(`${API_BASE_URL}/signature_baseline/add`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
-          // ❗ JANGAN set Content-Type untuk FormData
         },
         body: formData
       });
 
-      // ✅ Parse response
       let data;
       try {
         data = await response.json();
@@ -284,14 +287,15 @@ export default function BaselineSign() {
         throw new Error('Response tidak valid dari server');
       }
 
-      // ✅ Cek response status
       if (!response.ok) {
-        throw new Error(data.error || data.detail || `Server error: ${response.status}`);
+        if (data.details) {
+          setErrorDetails(data.details);
+        }
+        throw new Error(data.message || data.error || data.detail || `Server error: ${response.status}`);
       }
 
       console.log('✅ Signature saved:', data);
 
-      // ✅ Update state dengan signature baru
       const newSignature = {
         step: currentStep,
         image: currentSignature,
@@ -301,11 +305,9 @@ export default function BaselineSign() {
       const updatedSignatures = [...signatures, newSignature];
       setSignatures(updatedSignatures);
 
-      // Reset untuk signature berikutnya
       setCurrentSignature(null);
       setCurrentStep(currentStep + 1);
 
-      // ✅ Tampilkan pesan sukses dengan SweetAlert
       if (currentStep === 1) {
         Toast.fire({
           icon: 'success',
@@ -341,11 +343,13 @@ export default function BaselineSign() {
     } catch (error) {
       console.error('❌ Save error:', error);
       
-      // ✅ Error handling yang lebih spesifik dengan SweetAlert
       const errorMessage = error.message || 'Gagal menyimpan signature';
       
-      if (errorMessage.includes('tidak cocok') || errorMessage.includes('match')) {
-        setError('❌ Tanda tangan tidak cocok dengan baseline yang ada. Silakan coba lagi dengan tanda tangan yang sama.');
+      if (errorMessage.includes('tidak cocok') || errorMessage.includes('tidak konsisten') || errorMessage.includes('match')) {
+        setError('❌ Tanda tangan tidak cocok dengan baseline yang ada');
+        setCurrentSignature(null);
+        setShowDrawBox(false);
+        
         Toast.fire({
           icon: 'error',
           title: 'Tanda Tangan Tidak Cocok',
@@ -380,6 +384,7 @@ export default function BaselineSign() {
         });
       } else {
         setError(`❌ ${errorMessage}`);
+        setCurrentSignature(null);
         Toast.fire({
           icon: 'error',
           title: 'Gagal Menyimpan',
@@ -395,6 +400,7 @@ export default function BaselineSign() {
   const handleReset = () => {
     setCurrentSignature(null);
     setError('');
+    setErrorDetails(null);
   };
 
   const handleBack = () => {
@@ -421,6 +427,7 @@ export default function BaselineSign() {
   const handleDrawClick = () => {
     setShowDrawBox(true);
     setError('');
+    setErrorDetails(null);
   };
 
   const handleCancelDraw = () => {
@@ -449,8 +456,6 @@ export default function BaselineSign() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-
-        {/* Content Area */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-6 py-6">
             
@@ -466,16 +471,49 @@ export default function BaselineSign() {
               </div>
             )}
 
-            {/* Error Message */}
+            {/* Error Message with Details */}
             {error && (
-              <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-                {error}
-                <button 
-                  onClick={() => setError('')}
-                  className="absolute top-2 right-2 text-red-700 hover:text-red-900"
-                >
-                  ✕
-                </button>
+              <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <div className="flex items-start">
+                  <div className="flex-1">
+                    <p className="font-semibold text-red-800">{error}</p>
+                    
+                    {errorDetails && (
+                      <div className="mt-3 text-sm text-red-700 bg-red-100 p-3 rounded">
+                        <p className="font-semibold mb-2">Detail Teknis:</p>
+                        <ul className="space-y-1">
+                          {errorDetails.failedDistance && (
+                            <li>• Jarak similarity: <strong>{errorDetails.failedDistance}</strong></li>
+                          )}
+                          {errorDetails.averageDistance && (
+                            <li>• Rata-rata jarak: <strong>{errorDetails.averageDistance}</strong></li>
+                          )}
+                          {errorDetails.threshold && (
+                            <li>• Threshold maksimal: <strong>{errorDetails.threshold}</strong></li>
+                          )}
+                        </ul>
+                        {errorDetails.suggestion && (
+                          <p className="mt-2 italic text-red-600">
+                            💡 {errorDetails.suggestion}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm mt-2 text-red-600">
+                      Silakan coba lagi dengan tanda tangan yang lebih mirip dengan baseline pertama Anda.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setError('');
+                      setErrorDetails(null);
+                    }}
+                    className="text-red-700 hover:text-red-900 ml-2"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
 
@@ -520,7 +558,7 @@ export default function BaselineSign() {
                   {!currentSignature && (
                     <p className="text-gray-400 text-center">
                       Gambar atau upload tanda tangan kamu<br/>
-                      {currentStep > 1 && <span className="text-xs">(Harus sama dengan signature sebelumnya)</span>}
+                      {currentStep > 1 && <span className="text-xs text-red-500 font-semibold">(Harus sama dengan signature sebelumnya)</span>}
                     </p>
                   )}
                 </div>
@@ -532,9 +570,41 @@ export default function BaselineSign() {
                     Gambar Signature #{currentStep}
                   </h3>
                   <p className="text-xs text-gray-500">
-                    Gambar di area putih {currentStep > 1 && '(Harus sama dengan signature pertama)'}
+                    Gambar di area putih {currentStep > 1 && <span className="text-red-500 font-semibold">(Harus sama dengan signature pertama)</span>}
                   </p>
                 </div>
+
+                {/* ✅ Pen Thickness Dropdown */}
+                <div className="mb-3 flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                  <label className="text-sm text-gray-700 font-medium whitespace-nowrap">
+                    Pen Thickness:
+                  </label>
+                  <div className="relative w-25">
+                    <select
+                      value={penThickness}
+                      onChange={(e) => setPenThickness(parseInt(e.target.value))}
+                      className="w-full bg-white text-sm border border-gray-300 rounded-md pl-2 pr-8 py-1.5 h-9 transition duration-200 ease-in-out focus:outline-none focus:border-[#003E9C] focus:ring-1 focus:ring-[#003E9C]/20 hover:border-gray-400 shadow-sm appearance-none cursor-pointer"
+                    >
+                      <option value="1">1px</option>
+                      <option value="2">2px</option>
+                      <option value="3">3px</option>
+                      <option value="4">4px</option>
+                      <option value="5">5px</option>
+                    </select>
+                    {/* Dropdown Arrow Icon */}
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      strokeWidth="1.5" 
+                      stroke="currentColor" 
+                      className="h-4 w-4 absolute top-2 right-2 text-gray-600 pointer-events-none"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </div>
+
 
                 {/* Canvas */}
                 <canvas
@@ -608,7 +678,7 @@ export default function BaselineSign() {
                   disabled={loading}
                   className="flex-1 bg-[#003E9C] text-white py-2.5 rounded-lg font-medium shadow hover:bg-[#002d73] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Saving & Validating...' : 'Save Signature'}
+                  {loading ? 'Validating AI...' : 'Save Signature'}
                 </button>
 
                 <button

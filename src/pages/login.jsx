@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import Swal from "sweetalert2";
 
+
 const Toast = Swal.mixin({
   customClass: {
     container: "swal-container-high-z-index",
@@ -15,8 +16,10 @@ const Toast = Swal.mixin({
   },
 });
 
+
 function SuccessModal({ isOpen, onClose, message }) {
   if (!isOpen) return null;
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -29,6 +32,7 @@ function SuccessModal({ isOpen, onClose, message }) {
             <path d="M10 8.586L3.707 2.293a1 1 0 00-1.414 1.414L8.586 10l-6.293 6.293a1 1 0 101.414 1.414L10 11.414l6.293 6.293a1 1 0 001.414-1.414L11.414 10l6.293-6.293a1 1 0 00-1.414-1.414L10 8.586z" />
           </svg>
         </button>
+
 
         <div className="flex justify-center mb-6">
           <div className="w-24 h-24 rounded-full border-4 border-green-500 flex items-center justify-center animate-scale-in">
@@ -51,14 +55,17 @@ function SuccessModal({ isOpen, onClose, message }) {
           </div>
         </div>
 
+
         <h2 className="text-2xl font-bold text-center mb-4 text-gray-900">
           Successfully
         </h2>
+
 
         <p className="text-center text-gray-600 leading-relaxed whitespace-pre-line">
           {message}
         </p>
       </div>
+
 
       <style>{`
         @keyframes scale-in {
@@ -80,6 +87,7 @@ function SuccessModal({ isOpen, onClose, message }) {
   );
 }
 
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -91,7 +99,9 @@ export default function Login() {
   const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
 
+
   const API_BASE_URL = "http://localhost:3001";
+
 
   const checkBaselineStatus = async (token) => {
     try {
@@ -103,6 +113,7 @@ export default function Login() {
         },
       });
 
+
       if (!response.ok) {
         if (response.status === 404) {
           console.log("ℹ️ User belum punya baseline");
@@ -111,11 +122,14 @@ export default function Login() {
         throw new Error("Failed to check baseline status");
       }
 
+
       const data = await response.json();
       console.log("📊 Baseline status:", data);
 
+
       const count = data.count || 0;
       const hasCompleteBaseline = count >= 5;
+
 
       return {
         hasBaseline: hasCompleteBaseline,
@@ -127,11 +141,14 @@ export default function Login() {
     }
   };
 
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
+
     if (!email || !password) {
       setError("Email dan password harus diisi");
+
 
       Toast.fire({
         icon: "warning",
@@ -143,9 +160,11 @@ export default function Login() {
       return;
     }
 
+
     setError("");
     setSuccess("");
     setLoading(true);
+
 
     try {
       console.log("🔐 Attempting login...");
@@ -160,13 +179,17 @@ export default function Login() {
         }),
       });
 
+
       const data = await response.json();
 
+
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(data.error || data.message || "Login failed");
       }
 
+
       console.log("✅ Login successful:", data);
+
 
       if (data.token) {
         localStorage.setItem("token", data.token);
@@ -174,23 +197,40 @@ export default function Login() {
         throw new Error("Token tidak ditemukan dari server");
       }
 
-      // 🔴 PENTING: simpan user + log
-      if (data.user) {
-        console.log("✅ User dari backend:", data.user);
-        localStorage.setItem("user", JSON.stringify(data.user));
+
+      // ✅ Fetch user profile dari endpoint /auth/me
+      console.log("👤 Fetching user profile...");
+      const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${data.token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        console.log("✅ User dari /me:", userData);
+        localStorage.setItem("user", JSON.stringify(userData));
         console.log(
           "✅ User disimpan ke localStorage:",
           localStorage.getItem("user")
         );
+      } else {
+        console.warn("⚠️ Gagal fetch user profile");
+        throw new Error("Gagal mengambil data user");
       }
+
 
       console.log("📊 Checking baseline status...");
       const baselineStatus = await checkBaselineStatus(data.token);
+
 
       if (baselineStatus.hasBaseline) {
         console.log(
           "✅ User has complete baseline → redirecting to Dashboard"
         );
+
 
         Toast.fire({
           icon: "success",
@@ -208,6 +248,7 @@ export default function Login() {
           `⚠️ User has ${baselineStatus.count}/5 baseline → redirecting to Baseline Sign`
         );
 
+
         let message = "";
         if (baselineStatus.count > 0) {
           message = `You have ${baselineStatus.count}/5 baseline signatures. Please complete your baseline setup.`;
@@ -215,6 +256,7 @@ export default function Login() {
           message =
             "Please set up your baseline signatures to continue using the system.";
         }
+
 
         Toast.fire({
           icon: "success",
@@ -229,6 +271,7 @@ export default function Login() {
           }
         });
 
+
         setSuccess(
           "Login successful! Please complete your baseline signatures."
         );
@@ -236,13 +279,17 @@ export default function Login() {
     } catch (error) {
       console.error("❌ Login error:", error);
 
+
       let errorMessage = "";
       let errorTitle = "Login Failed";
+
 
       if (
         error.message.includes("401") ||
         error.message.includes("invalid") ||
-        error.message.includes("incorrect")
+        error.message.includes("incorrect") ||
+        error.message.includes("Password salah") ||
+        error.message.includes("User tidak ditemukan")
       ) {
         errorTitle = "Invalid Credentials";
         errorMessage =
@@ -267,6 +314,7 @@ export default function Login() {
         setError(error.message || "Login gagal. Silakan coba lagi.");
       }
 
+
       Toast.fire({
         icon: "error",
         title: errorTitle,
@@ -279,6 +327,7 @@ export default function Login() {
     }
   };
 
+
   return (
     <div className="flex min-h-screen">
       <style>{`
@@ -286,11 +335,13 @@ export default function Login() {
         .swal-container-high-z-index { z-index: 999999 !important; }
       `}</style>
 
+
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         message={successMessage}
       />
+
 
       {/* Sidebar */}
       <aside className="w-1/5 bg-[#003E9C] flex flex-col items-start py-8 px-8 text-white">
@@ -299,12 +350,14 @@ export default function Login() {
         <p className="text-sm opacity-90">Fast • Secure • Paperless</p>
       </aside>
 
+
       {/* Main Section */}
       <div className="flex-1 flex items-center justify-center bg-[#E6E6E6] p-8">
         <div className="w-full max-w-md">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
             Please Log in
           </h2>
+
 
           <form
             className="bg-white p-8 rounded-lg shadow-md space-y-6"
@@ -323,6 +376,7 @@ export default function Login() {
               </div>
             )}
 
+
             {success && (
               <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
                 {success}
@@ -336,12 +390,14 @@ export default function Login() {
               </div>
             )}
 
+
             {loading && (
               <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm">
                 <p className="font-semibold">🔄 Memproses login...</p>
                 <p className="text-xs mt-1">Mohon tunggu sebentar</p>
               </div>
             )}
+
 
             <div className="relative">
               <input
@@ -358,6 +414,7 @@ export default function Login() {
                 required
               />
             </div>
+
 
             <div className="relative">
               <input
@@ -383,11 +440,13 @@ export default function Login() {
               </button>
             </div>
 
+
             <div className="flex justify-end">
               <a href="#" className="text-sm text-gray-700 hover:underline">
                 Forgot Password ?
               </a>
             </div>
+
 
             <div className="flex justify-center">
               <button
@@ -399,6 +458,7 @@ export default function Login() {
               </button>
             </div>
           </form>
+
 
           <p className="mt-6 text-sm text-gray-900 text-center">
             Do not have an account?{" "}

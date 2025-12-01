@@ -10,7 +10,9 @@ import Signaturereq from "./components/signaturereq";
 import Drawsignature from "./components/drawsignature";
 import Uploadsignature from "./components/uploadsignature";
 import Completed from "./components/completed";
-import RequestHistory from "./pages/RequestHistory"; 
+import RequestHistory from "./pages/RequestHistory";
+import BaselineSign from "./pages/BaselinSign"; // ✅ TAMBAHKAN IMPORT INI
+
 
 function App() {
   return (
@@ -28,10 +30,12 @@ function App() {
         <Route path="/drawsignature" element={<Drawsignature />} />
         <Route path="/uploadsignature" element={<Uploadsignature />} />
         <Route path="/completed" element={<Completed />} />
-        <Route path="/request-history" element={<RequestHistory />} /> 
+        <Route path="/request-history" element={<RequestHistory />} />
+        <Route path="/baseline" element={<BaselineSign />} /> {/* ✅ TAMBAHKAN ROUTE INI */}
       </Routes>
     </Router>
   );
 }
+
 
 export default App;

@@ -5,15 +5,19 @@ import Sidebar from "../components/Sidebar";
 import Header from "../components/header";
 import Swal from 'sweetalert2';
 
+
 const NotificationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
 
   const [list, setList] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
 
+
   const API_BASE_URL = 'http://localhost:3001';
+
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -22,8 +26,10 @@ const NotificationPage = () => {
       return;
     }
 
+
     fetchIncomingRequests();
   }, [navigate]);
+
 
   const fetchIncomingRequests = async () => {
     try {
@@ -35,6 +41,7 @@ const NotificationPage = () => {
           'Content-Type': 'application/json'
         }
       });
+
 
       if (response.ok) {
         const data = await response.json();
@@ -57,6 +64,7 @@ const NotificationPage = () => {
           request_id: req.request_id
         })) : [];
 
+
         setList(formattedList);
       } else {
         console.error('Failed to fetch requests');
@@ -68,6 +76,7 @@ const NotificationPage = () => {
     }
   };
 
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -76,10 +85,12 @@ const NotificationPage = () => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
+
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${diffDays}d ago`;
   };
+
 
   const handleApprove = async (item) => {
     try {
@@ -97,7 +108,9 @@ const NotificationPage = () => {
         cancelButtonText: 'Batal'
       });
 
+
       if (!result.isConfirmed) return;
+
 
       const token = localStorage.getItem('token');
       
@@ -110,11 +123,13 @@ const NotificationPage = () => {
         }
       });
 
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Gagal menyetujui permintaan');
       }
       console.log('✅ Request approved');
+
 
       console.log('🔄 Step 2: Fetching baseline signature...');
       const signatureResponse = await fetch(`${API_BASE_URL}/signature_baseline/`, {
@@ -124,6 +139,7 @@ const NotificationPage = () => {
           'Content-Type': 'application/json'
         }
       });
+
 
       let signatureData = '';
       if (signatureResponse.ok) {
@@ -175,9 +191,11 @@ const NotificationPage = () => {
         }
       }
 
+
       if (!signatureData) {
         throw new Error('Anda belum memiliki tanda tangan baseline. Silakan buat baseline terlebih dahulu di menu Tanda Tangan.');
       }
+
 
       console.log('🔄 Step 4: Saving to localStorage...');
       localStorage.setItem('signatureData', signatureData);
@@ -188,13 +206,16 @@ const NotificationPage = () => {
       localStorage.setItem('requestId', item.request_id);
       localStorage.setItem('requesterName', item.sender);
 
+
       console.log('✅ All data saved to localStorage');
       console.log('  📄 Document ID:', item.document_id);
       console.log('  📄 File URL:', `${API_BASE_URL}/${item.filePath}`);
       console.log('  ✍️ Signature preview:', signatureData.substring(0, 100));
 
+
       console.log('🔄 Step 5: Navigating to position page...');
       navigate('/posisi-ttd');
+
 
     } catch (error) {
       console.error('❌ Approve error:', error);
@@ -206,6 +227,7 @@ const NotificationPage = () => {
       });
     }
   };
+
 
   const handleReject = async (requestId) => {
     try {
@@ -220,7 +242,9 @@ const NotificationPage = () => {
         cancelButtonText: 'Batal'
       });
 
+
       if (!result.isConfirmed) return;
+
 
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/requests/${requestId}/reject`, {
@@ -230,6 +254,7 @@ const NotificationPage = () => {
           'Content-Type': 'application/json'
         }
       });
+
 
       if (response.ok) {
         Swal.fire({
@@ -253,11 +278,13 @@ const NotificationPage = () => {
     }
   };
 
+
   const getStatusBadge = (status) => {
     switch(status) {
       case 'pending':
         return <FaClock className="text-yellow-500" title="Menunggu" />;
       case 'approved':
+      case 'completed':
         return <FaCheckCircle className="text-green-500" title="Disetujui" />;
       case 'rejected':
         return <FaTimesCircle className="text-red-500" title="Ditolak" />;
@@ -266,18 +293,22 @@ const NotificationPage = () => {
     }
   };
 
+
   return (
     <div className="flex w-full min-h-screen bg-[#EEF3FA]">
       <div className="hidden md:block">
         <Sidebar pathname={location.pathname} navigate={navigate} />
       </div>
 
+
       <div className="flex flex-col flex-1 md:ml-64">
         <Header notificationCount={list.filter((x) => x.unread).length} />
+
 
         <div className="p-4 md:p-6">
           <div className="w-full bg-white rounded-lg shadow p-4 mb-4">
             <h3 className="text-lg font-semibold mb-4">Notifications</h3>
+
 
             {loading ? (
               <p className="text-sm text-gray-500 text-center py-4">Memuat notifikasi...</p>
@@ -301,16 +332,19 @@ const NotificationPage = () => {
                     {getStatusBadge(item.status)}
                   </div>
 
+
                   <div className="flex-1">
                     <p className="font-medium">{item.title}</p>
                     <p className="text-sm text-gray-600">{item.excerpt}</p>
                   </div>
+
 
                   <span className="text-xs text-gray-500">{item.time}</span>
                 </div>
               ))
             )}
           </div>
+
 
           <div className="w-full bg-white rounded-lg p-4 shadow">
             {!selected ? (
@@ -320,13 +354,16 @@ const NotificationPage = () => {
                 const item = list.find((x) => x.id === selected);
                 if (!item) return null;
 
+
                 return (
                   <div>
                     <h4 className="text-sm font-semibold mb-2">{item.title}</h4>
 
+
                     <div className="text-xs text-gray-500 mb-3">
                       From <strong>{item.sender}</strong> ({item.email}) • {item.time}
                     </div>
+
 
                     <p className="text-sm text-gray-700 mb-2">
                       <strong>Catatan:</strong> {item.excerpt}
@@ -336,17 +373,20 @@ const NotificationPage = () => {
                       <strong>File:</strong> {item.fileName}
                     </p>
 
+
                     <p className="text-sm mb-4">
                       <strong>Status:</strong> 
                       <span className={`ml-2 px-2 py-1 rounded text-xs ${
                         item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        item.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        (item.status === 'approved' || item.status === 'completed') ? 'bg-green-100 text-green-700' :
                         'bg-red-100 text-red-700'
                       }`}>
                         {item.status === 'pending' ? 'Menunggu' : 
-                         item.status === 'approved' ? 'Disetujui & Sudah Ditandatangani' : 'Ditolak'}
+                         (item.status === 'approved' || item.status === 'completed') ? 'Disetujui' : 
+                         'Ditolak'}
                       </span>
                     </p>
+
 
                     <div className="flex gap-2">
                       {item.filePath && (
@@ -359,6 +399,7 @@ const NotificationPage = () => {
                         </button>
                       )}
 
+
                       {item.status === 'pending' && (
                         <>
                           <button
@@ -368,6 +409,7 @@ const NotificationPage = () => {
                             <FaCheckCircle className="inline mr-1" />
                             Setuju & Tanda Tangan
                           </button>
+
 
                           <button
                             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition"
@@ -379,9 +421,10 @@ const NotificationPage = () => {
                         </>
                       )}
 
-                      {item.status === 'approved' && (
+
+                      {(item.status === 'approved' || item.status === 'completed') && (
                         <p className="text-sm text-green-600 font-medium">
-                          ✓ Dokumen sudah Anda tandatangani
+                          ✓ Dokumen sudah Anda setujui dan tandatangani
                         </p>
                       )}
                     </div>
@@ -395,5 +438,6 @@ const NotificationPage = () => {
     </div>
   );
 };
+
 
 export default NotificationPage;
