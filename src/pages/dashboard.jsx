@@ -14,7 +14,7 @@ import SignatureForm from "../components/SignatureForm";
 import RequestTTD from "../components/RequestTTD";
 import ReactDOM from "react-dom/client";
 import Sidebar from "../components/Sidebar";
-import Header from "../components/header";
+import Header from "../components/Header";
 
 const Toast = Swal.mixin({
   toast: true,
@@ -42,12 +42,12 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔴 NAMA USER UNTUK HEADER
+  // NAMA USER UNTUK HEADER
   const [userName, setUserName] = useState("User");
 
   const API_BASE_URL = "http://localhost:3001";
 
-  // 🔴 BACA USER DARI LOCALSTORAGE (DIISI SAAT LOGIN)
+  // BACA USER DARI LOCALSTORAGE (DIISI SAAT LOGIN)
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
@@ -59,7 +59,6 @@ export default function Dashboard() {
       const parsed = JSON.parse(storedUser);
       console.log("📦 parsed user:", parsed);
 
-      // backend kirim { user: { user_id, name, email, role } }
       const nameFromBackend = parsed.name;
 
       console.log("👤 name for header:", nameFromBackend);
@@ -286,6 +285,8 @@ export default function Dashboard() {
     MySwal.fire({
       html: (
         <RequestTTD
+          documentTitle={selectedFile ? selectedFile.name : "Dokumen terpilih"}
+          apiBaseUrl={API_BASE_URL}
           onSend={async (to, notes) => {
             if (!to) {
               MySwal.showValidationMessage("Email penerima wajib diisi!");
@@ -355,7 +356,7 @@ export default function Dashboard() {
       ),
       showConfirmButton: false,
       showCloseButton: true,
-      width: 400,
+      width: 500,
       padding: "0 0 22px 0",
       customClass: { popup: "p-0" },
     });
@@ -405,7 +406,7 @@ export default function Dashboard() {
       },
     });
   }
-
+  
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 to-blue-100 text-gray-800 font-sans">
       <style>{`
@@ -575,4 +576,6 @@ export default function Dashboard() {
       </main>
     </div>
   );
-}
+}      
+
+

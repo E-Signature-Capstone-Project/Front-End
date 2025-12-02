@@ -11,8 +11,8 @@ import Drawsignature from "./components/drawsignature";
 import Uploadsignature from "./components/uploadsignature";
 import Completed from "./components/completed";
 import RequestHistory from "./pages/RequestHistory";
-import BaselineSign from "./pages/BaselinSign"; // ✅ TAMBAHKAN IMPORT INI
-
+import BaselineSign from "./pages/BaselinSign";
+import SignatureForm from "./components/SignatureForm"; // ⬅️ baru
 
 function App() {
   return (
@@ -21,21 +21,33 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profil" element={<Profil />} />
+
+        {/* Posisi TTD & QR */}
         <Route path="/posisi-ttd" element={<PosisiTtd />} />
+
+        {/* Log & notifikasi */}
         <Route path="/verif-log" element={<VerifLog />} />
         <Route path="/notification" element={<Notification />} />
+
+        {/* Flow permintaan tanda tangan */}
         <Route path="/signaturereq" element={<Signaturereq />} />
+        <Route path="/request-history" element={<RequestHistory />} />
+
+        {/* Halaman tanda tangan user */}
+        <Route path="/signature" element={<SignatureForm />} />   {/* ⬅️ pakai SignatureForm */}
         <Route path="/drawsignature" element={<Drawsignature />} />
         <Route path="/uploadsignature" element={<Uploadsignature />} />
         <Route path="/completed" element={<Completed />} />
-        <Route path="/request-history" element={<RequestHistory />} />
-        <Route path="/baseline" element={<BaselineSign />} /> {/* ✅ TAMBAHKAN ROUTE INI */}
+
+        {/* Baseline sign */}
+        <Route path="/baseline-sign" element={<BaselineSign />} />
+        <Route path="/baseline" element={<BaselineSign />} />
       </Routes>
     </Router>
   );
 }
-
 
 export default App;

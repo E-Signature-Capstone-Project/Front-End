@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import Header from "../components/header";
+import Header from "../components/Header";
 import IncomingRequestsTab from "../components/request/IncomingRequestTab";
 import OutgoingRequestsTab from "../components/request/OutgoingRequestTab";
 

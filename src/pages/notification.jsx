@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FaEnvelope, FaEnvelopeOpen, FaCheckCircle, FaTimesCircle, FaClock, FaEye } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import Header from "../components/header";
+import Header from "../components/Header";
 import Swal from 'sweetalert2';
 
 
