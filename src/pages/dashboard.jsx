@@ -42,12 +42,10 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // NAMA USER UNTUK HEADER
   const [userName, setUserName] = useState("User");
 
   const API_BASE_URL = "http://localhost:3001";
 
-  // BACA USER DARI LOCALSTORAGE (DIISI SAAT LOGIN)
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
@@ -386,19 +384,67 @@ export default function Dashboard() {
           root.render(
             <SignatureForm
               onChange={() => {}}
-              onConfirm={(signatureData) => {
-                if (selectedFile) {
-                  const fileUrl = URL.createObjectURL(selectedFile);
-                  localStorage.setItem("uploadedFileUrl", fileUrl);
-                  localStorage.setItem("uploadedFileName", selectedFile.name);
-                  localStorage.setItem(
-                    "uploadedDocumentId",
-                    lastUploadedDocId
-                  );
+              onConfirm={async (signatureData) => {
+                try {
+                  let base64String;
+
+                  if (typeof signatureData === "object" && signatureData !== null) {
+                    if (signatureData.base64) {
+                      base64String = signatureData.base64;
+                    } else if (signatureData.file) {
+                      const reader = new FileReader();
+                      base64String = await new Promise((resolve, reject) => {
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(signatureData.file);
+                      });
+                    } else {
+                      throw new Error("Invalid signature data format");
+                    }
+                  } else if (typeof signatureData === "string") {
+                    base64String = signatureData;
+                  } else {
+                    throw new Error("Unknown signature data type");
+                  }
+
+                  if (!base64String || !base64String.startsWith("data:image/")) {
+                    throw new Error("Invalid base64 image data");
+                  }
+
+                  console.log("✅ Self-sign: Signature data processed:", {
+                    type: typeof signatureData,
+                    hasBase64: !!base64String,
+                    length: base64String.length,
+                  });
+
+                  // simpan base64 untuk self-sign
+                  localStorage.setItem("signatureData", base64String);
+
+                  // simpan info dokumen tanpa flag external
+                  if (selectedFile) {
+                    const fileUrl = URL.createObjectURL(selectedFile);
+                    localStorage.setItem("uploadedFileUrl", fileUrl);
+                    localStorage.setItem("uploadedFileName", selectedFile.name);
+                    localStorage.setItem("uploadedDocumentId", lastUploadedDocId);
+                  }
+
+                  // hapus flag external
+                  localStorage.removeItem("isRequestedDocument");
+                  localStorage.removeItem("requestId");
+                  localStorage.removeItem("selectedBaselineId");
+
+                  Swal.close();
+
+                  // ✅ arahkan ke halaman self sign
+                  navigate("/posisi-ttd-self");
+                } catch (error) {
+                  console.error("❌ Error processing signature:", error);
+                  Toast.fire({
+                    icon: "error",
+                    title: "Gagal memproses tanda tangan",
+                    text: error.message,
+                  });
                 }
-                localStorage.setItem("signatureData", signatureData);
-                Swal.close();
-                navigate("/posisi-ttd");
               }}
             />
           );
@@ -406,7 +452,7 @@ export default function Dashboard() {
       },
     });
   }
-  
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 to-blue-100 text-gray-800 font-sans">
       <style>{`
@@ -417,7 +463,6 @@ export default function Dashboard() {
       <Sidebar />
 
       <main className="flex-1 ml-64 flex flex-col">
-        {/* 🔴 NAMA DARI BE DIKIRIM KE HEADER */}
         <Header userName={userName} />
 
         <div className="flex-1 overflow-y-auto">
@@ -439,8 +484,7 @@ export default function Dashboard() {
                             </p>
                             <p className="text-sm text-gray-500 mt-1">
                               Siap untuk ditandatangani •{" "}
-                              {(selectedFile.size / (1024 * 1024)).toFixed(2)}{" "}
-                              MB
+                              {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
                             </p>
                           </div>
                         </div>
@@ -576,6 +620,4 @@ export default function Dashboard() {
       </main>
     </div>
   );
-}      
-
-
+}

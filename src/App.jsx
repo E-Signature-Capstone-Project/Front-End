@@ -3,7 +3,9 @@ import Login from "./pages/login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/dashboard";
 import Profil from "./pages/profil";
-import PosisiTtd from "./pages/posisiTtd";
+import PosisiTtdSelf from "./pages/posisiTtdSelf";
+import PosisiTtdRequest from "./pages/posisiTtdRequest";
+
 import VerifLog from "./pages/veriflog";
 import Notification from "./pages/notification";
 import Signaturereq from "./components/signaturereq";
@@ -12,11 +14,12 @@ import Uploadsignature from "./components/uploadsignature";
 import Completed from "./components/completed";
 import RequestHistory from "./pages/RequestHistory";
 import BaselineSign from "./pages/BaselinSign";
-import SignatureForm from "./components/SignatureForm"; // ⬅️ baru
+import SignatureForm from "./components/SignatureForm";
 import AdminLogin from "./pages/loginadmin";
 import AdminVerifLog from "./pages/verifadmin";
 import ApproveAdmin from "./pages/Approveadmin";
 import AdminProfile from "./pages/Adminprofil";
+
 function App() {
   return (
     <Router>
@@ -25,33 +28,35 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
+        {/* Dashboard & Profil */}
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profil" element={<Profil />} />
 
-        {/* Posisi TTD & QR */}
-        <Route path="/posisi-ttd" element={<PosisiTtd />} />
+        {/* Posisi TTD */}
+        <Route path="/posisi-ttd-self" element={<PosisiTtdSelf />} />
+        <Route path="/posisi-ttd-request" element={<PosisiTtdRequest />} />
 
-        {/* Log & notifikasi */}
+        {/* Log & Notifikasi */}
         <Route path="/verif-log" element={<VerifLog />} />
         <Route path="/notification" element={<Notification />} />
 
-        {/* Flow permintaan tanda tangan */}
+        {/* Flow Permintaan Tanda Tangan */}
         <Route path="/signaturereq" element={<Signaturereq />} />
         <Route path="/request-history" element={<RequestHistory />} />
 
-        {/* Halaman tanda tangan user */}
-        <Route path="/signature" element={<SignatureForm />} />   {/* ⬅️ pakai SignatureForm */}
+        {/* Halaman Tanda Tangan User */}
+        <Route path="/signature" element={<SignatureForm />} />
         <Route path="/drawsignature" element={<Drawsignature />} />
         <Route path="/uploadsignature" element={<Uploadsignature />} />
         <Route path="/completed" element={<Completed />} />
 
-        {/* Baseline sign */}
+        {/* Baseline Sign */}
         <Route path="/baseline-sign" element={<BaselineSign />} />
         <Route path="/baseline" element={<BaselineSign />} />
 
-        {/* Admin */}
-        <Route path="/admin/verif-log" element={<AdminVerifLog />} />
+        {/* Admin Routes */}
         <Route path="/adminlogin" element={<AdminLogin />} />
+        <Route path="/admin/verif-log" element={<AdminVerifLog />} />
         <Route path="/admin/approve" element={<ApproveAdmin />} />
         <Route path="/admin/profile" element={<AdminProfile />} />
       </Routes>

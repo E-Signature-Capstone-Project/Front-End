@@ -1,170 +1,173 @@
-import React, { useRef, useState, useEffect } from "react";
-import { FaUndo, FaUpload } from "react-icons/fa";
+import React, { useState } from "react";
+import { FaUpload, FaCheckCircle, FaTimes } from "react-icons/fa";
 
-export default function SignatureForm({ onChange, onConfirm }) {
-  const canvasRef = useRef(null);
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+export default function SignatureForm({ onConfirm, onChange }) {
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-    }
-  }, []);
-
-  const startDrawing = (e) => {
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    
-    ctx.beginPath();
-    if (e.type === "mousedown") {
-      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    } else if (e.type === "touchstart") {
-      e.preventDefault();
-      const touch = e.touches[0];
-      ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
-    }
-  };
-
-  const draw = (e) => {
-    if (!isDrawing) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-
-    if (e.type === "mousemove") {
-      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-      ctx.stroke();
-    } else if (e.type === "touchmove") {
-      e.preventDefault();
-      const touch = e.touches[0];
-      ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
-      ctx.stroke();
-    }
-
-    if (onChange) onChange(canvas.toDataURL("image/png"));
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  const handleReset = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setUploadedImage(null);
-    if (onChange) onChange(null);
-  };
-
-  const handleUpload = (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
+    
     if (!file) return;
 
+    // Validasi file type
+    if (!file.type.startsWith('image/')) {
+      alert('Hanya file gambar yang diperbolehkan (PNG/JPG)');
+      return;
+    }
+
+    // Validasi file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran file maksimal 2MB');
+      return;
+    }
+
+    console.log('📎 File selected:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    setUploadedFile(file);
+
+    // Convert ke base64 untuk preview
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Hitung proporsi untuk fit canvas
-        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-        const x = (canvas.width - img.width * scale) / 2;
-        const y = (canvas.height - img.height * scale) / 2;
-        
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-        
-        setUploadedImage(event.target.result);
-        if (onChange) onChange(canvas.toDataURL("image/png"));
-      };
-      img.src = event.target.result;
+    
+    reader.onloadend = () => {
+      const base64String = reader.result;
+      
+      console.log('✅ File converted to base64:', {
+        length: base64String.length,
+        preview: base64String.substring(0, 50) + '...'
+      });
+      
+      setPreviewImage(base64String);
+      
+      if (onChange) {
+        onChange(base64String);
+      }
     };
+
+    reader.onerror = (error) => {
+      console.error('❌ FileReader error:', error);
+      alert('Gagal membaca file. Silakan coba lagi.');
+    };
+
     reader.readAsDataURL(file);
   };
 
-  const handleConfirm = () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const pixels = imageData.data;
-    let isEmpty = true;
-    
-    for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i + 3] !== 0) {
-        isEmpty = false;
-        break;
-      }
+  const handleRemoveFile = () => {
+    setUploadedFile(null);
+    setPreviewImage(null);
+    if (onChange) {
+      onChange(null);
     }
-    
-    if (isEmpty) {
-      alert('Tanda tangan kosong. Silakan gambar atau upload tanda tangan terlebih dahulu');
+  };
+
+  const handleConfirm = () => {
+    if (!uploadedFile || !previewImage) {
+      alert('Silakan upload tanda tangan terlebih dahulu');
       return;
     }
-    
-    const signatureData = canvas.toDataURL("image/png");
-    if (onConfirm) onConfirm(signatureData);
+
+    // Validasi base64 sebelum kirim
+    if (!previewImage.startsWith('data:image/')) {
+      alert('Format gambar tidak valid');
+      return;
+    }
+
+    if (previewImage.length < 100) {
+      alert('Data gambar terlalu kecil. Silakan upload ulang.');
+      return;
+    }
+
+    console.log('✅ Confirming signature:', {
+      hasFile: !!uploadedFile,
+      hasPreview: !!previewImage,
+      previewLength: previewImage.length
+    });
+
+    // Kirim base64 string langsung
+    if (onConfirm) {
+      onConfirm(previewImage);
+    }
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto">
-      {/* Canvas Area */}
-      <div className="w-full mb-5">
-        <div className="border-2 border-gray-300 rounded-xl bg-gray-50 overflow-hidden">
-          <canvas
-            ref={canvasRef}
-            width={500}
-            height={200}
-            className="w-full cursor-crosshair touch-none bg-white"
-            style={{ touchAction: "none", display: "block" }}
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
-            onTouchStart={startDrawing}
-            onTouchMove={draw}
-            onTouchEnd={stopDrawing}
-          />
-        </div>
-      </div>
+    <div className="w-full">
+      {/* Upload Area dengan Preview di Dalam */}
+      <div className="mb-6">
+        {!uploadedFile ? (
+          // Upload Button
+          <label
+            htmlFor="signature-upload"
+            className="block w-full border-2 border-dashed border-blue-300 rounded-lg p-12 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition bg-gray-50"
+          >
+            <FaUpload className="text-5xl text-blue-400 mx-auto mb-4" />
+            <p className="text-gray-700 font-semibold text-lg mb-2">
+              Klik untuk upload tanda tangan
+            </p>
+            <p className="text-sm text-gray-500">
+              Format: PNG, JPG (Max 2MB)
+            </p>
+          </label>
+        ) : (
+          // Preview Area (di dalam kotak yang sama)
+          <div className="border-2 border-blue-400 rounded-lg p-6 bg-white relative">
+            {/* Close Button */}
+            <button
+              onClick={handleRemoveFile}
+              className="absolute top-3 right-3 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition shadow-md"
+              title="Hapus dan upload ulang"
+            >
+              <FaTimes className="text-sm" />
+            </button>
 
-      {/* Action Buttons */}
-      <div className="flex gap-3 mb-4">
-        <button
-          onClick={handleReset}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-blue-500 text-blue-500 font-semibold hover:bg-blue-50 transition"
-        >
-          <FaUndo className="text-sm" />
-          <span>Reset</span>
-        </button>
+            {/* File Name */}
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+                <FaUpload className="text-xl" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-800">{uploadedFile.name}</p>
+                <p className="text-sm text-gray-500">
+                  {(uploadedFile.size / 1024).toFixed(2)} KB
+                </p>
+              </div>
+            </div>
 
-        <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-blue-500 text-blue-500 font-semibold hover:bg-blue-50 cursor-pointer transition">
-          <FaUpload className="text-sm" />
-          <span>Upload</span>
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleUpload}
-          />
-        </label>
+            {/* Preview Image */}
+            <div className="bg-gray-50 rounded-lg p-6 flex items-center justify-center min-h-[200px]">
+              <img
+                src={previewImage}
+                alt="Preview Signature"
+                className="max-h-48 max-w-full object-contain"
+              />
+            </div>
+
+            <p className="text-center text-xs text-gray-500 mt-3">
+              Preview tanda tangan Anda
+            </p>
+          </div>
+        )}
+
+        <input
+          id="signature-upload"
+          type="file"
+          accept="image/png,image/jpeg,image/jpg"
+          onChange={handleFileChange}
+          className="hidden"
+        />
       </div>
 
       {/* Confirm Button */}
       <button
         onClick={handleConfirm}
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition shadow-md"
+        disabled={!previewImage}
+        className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition shadow-lg text-lg"
       >
-        Lanjut Pilih Posisi
+        <FaCheckCircle className="text-xl" />
+        <span>Konfirmasi Tanda Tangan</span>
       </button>
     </div>
   );
