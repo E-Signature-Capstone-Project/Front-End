@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { FaEye, FaEyeSlash, FaShieldAlt } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
-import API_BASE_URL from "../utils/api";
+import axios from 'axios';
+
+const API_BASE_URL = "http://localhost:3001";
 
 const Toast = Swal.mixin({
   customClass: {
@@ -102,7 +104,8 @@ export default function Register() {
         role: formData.requestAdmin ? 'admin' : 'user'
       });
 
-      const response = await API_BASE_URL.post("/auth/register", {
+      // ✅ AXIOS REQUEST dengan localhost:3001
+      const response = await axios.post(`${API_BASE_URL}/auth/register`, {
         name: formData.username,
         email: formData.email,
         password: formData.password,
@@ -112,7 +115,7 @@ export default function Register() {
       console.log('📡 Response status:', response.status);
       console.log('📡 Response data:', response.data);
 
-      // ✅ Registration berhasil
+      // ✅ Registration berhasil - Berbeda untuk admin dan user
       if (formData.requestAdmin) {
         // Admin request
         Swal.fire({
@@ -128,7 +131,7 @@ export default function Register() {
           confirmButtonColor: '#003E9C',
           confirmButtonText: 'OK, Mengerti'
         }).then(() => {
-          navigate("/adminlogin"); // ✅ PERBAIKAN: Sesuai App.jsx
+          navigate("/adminlogin");
         });
       } else {
         // User biasa
@@ -141,7 +144,7 @@ export default function Register() {
           showConfirmButton: false,
           allowOutsideClick: false
         }).then(() => {
-          navigate("/login"); // ✅ PERBAIKAN: Sesuai App.jsx
+          navigate("/login");
         });
       }
 
@@ -163,7 +166,7 @@ export default function Register() {
             setErrors({ general: data.message });
           }
         }
-      } else if (error.message.includes('Network')) {
+      } else if (error.message.includes('Network') || error.code === 'ERR_NETWORK') {
         errorTitle = 'Koneksi Gagal';
         errorMessage = 'Tidak dapat terhubung ke server. Pastikan backend berjalan di http://localhost:3001';
         setErrors({ general: errorMessage });
@@ -216,13 +219,22 @@ export default function Register() {
               </div>
             )}
 
+            {loading && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded text-sm">
+                <p className="font-semibold">🔄 Mendaftar...</p>
+                <p className="text-xs mt-1">Please wait</p>
+              </div>
+            )}
+
             <input type="email" name="email" placeholder="Email"
               value={formData.email} onChange={handleChange} disabled={loading}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C]" />
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+              required />
 
             <input type="text" name="username" placeholder="Username"
               value={formData.username} onChange={handleChange} disabled={loading}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C]" />
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+              required />
 
             <div className="relative">
               <input
@@ -232,11 +244,13 @@ export default function Register() {
                 value={formData.password}
                 onChange={handleChange}
                 disabled={loading}
-                className="w-full pr-10 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C]"
+                className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                required
               />
               <button type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                disabled={loading}>
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
@@ -249,11 +263,13 @@ export default function Register() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 disabled={loading}
-                className="w-full pr-10 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C]"
+                className="w-full pr-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003E9C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                required
               />
               <button type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                disabled={loading}>
                 {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
@@ -284,7 +300,7 @@ export default function Register() {
             )}
 
             <button type="submit" disabled={loading}
-              className="w-full bg-[#003E9C] text-white py-2 rounded-lg hover:bg-blue-800 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+              className="w-full bg-[#003E9C] text-white py-2 rounded-lg hover:bg-[#002d73] transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
               {loading ? 'Mendaftar...' : (formData.requestAdmin ? 'Request Admin Access' : 'Sign Up')}
             </button>
           </form>
@@ -293,7 +309,7 @@ export default function Register() {
             Already have an account? <Link to="/login" className="text-[#003E9C] font-semibold hover:underline">Log In</Link>
           </p>
 
-          {/* ✅ LINK KE ADMIN LOGIN - PERBAIKAN */}
+          {/* ✅ LINK KE ADMIN LOGIN */}
           <p className="text-center mt-2 text-sm text-gray-500">
             Admin user? <Link to="/adminlogin" className="text-[#003E9C] font-semibold hover:underline">Admin Login</Link>
           </p>

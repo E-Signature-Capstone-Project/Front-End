@@ -89,9 +89,9 @@ export default function Login() {
 
       console.log("👤 User data:", userData);
 
-      // ✅ CEK ROLE - Redirect sesuai role
+      // ✅ Role-based routing
       if (userData.role === "admin") {
-        // 🔹 Admin → Langsung ke halaman VerifAdmin
+        // Admin → Langsung ke halaman VerifAdmin
         Toast.fire({
           icon: "success",
           title: "Admin Login Successful!",
@@ -99,10 +99,9 @@ export default function Login() {
           timer: 2000,
           showConfirmButton: false,
           timerProgressBar: true,
-        }).then(() => navigate("/admin/verif-log")); // ✅ Ganti dengan route halaman admin kamu
-
+        }).then(() => navigate("/admin/verif-log"));
       } else {
-        // 🔹 User biasa → Cek baseline dulu
+        // User biasa → Cek baseline dulu
         const baselineStatus = await checkBaselineStatus(token);
 
         if (baselineStatus.hasBaseline) {
@@ -124,7 +123,6 @@ export default function Login() {
           }).then(() => navigate("/baseline"));
         }
       }
-
     } catch (error) {
       console.error("❌ Login error:", error);
 
@@ -170,14 +168,14 @@ export default function Login() {
       {/* Sidebar */}
       <aside className="w-1/5 bg-[#003E9C] flex flex-col items-start py-8 px-8 text-white">
         <h1 className="text-3xl font-bold mb-4">E-Signature</h1>
-        <p className="font-semibold text-lg mb-1">E-Signature System</p>
+        <p className="font-semibold text-lg">E-Signature System</p>
         <p className="text-sm opacity-90">Fast • Secure • Paperless</p>
       </aside>
 
       {/* Main */}
       <div className="flex-1 flex items-center justify-center bg-[#E6E6E6] p-8">
         <div className="w-full max-w-md">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-8">
+          <h2 className="text-2xl font-bold text-center mb-8">
             Please Log in
           </h2>
 
@@ -186,15 +184,8 @@ export default function Login() {
             onSubmit={handleLogin}
           >
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                 {error}
-                <button
-                  onClick={() => setError("")}
-                  className="absolute top-2 right-2 text-red-700 hover:text-red-900"
-                  type="button"
-                >
-                  ✕
-                </button>
               </div>
             )}
 
@@ -224,7 +215,7 @@ export default function Login() {
               <input
                 type={passwordVisible ? "text" : "password"}
                 placeholder="Password"
-                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#003E9C] focus:ring-1 focus:ring-[#003E9C] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:border-[#003E9C] focus:ring-1 focus:ring-[#003E9C] disabled:bg-gray-100 disabled:cursor-not-allowed"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -236,34 +227,29 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setPasswordVisible(!passwordVisible)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 disabled={loading}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed"
               >
                 {passwordVisible ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
 
-            <div className="flex justify-end">
-              <a href="#" className="text-sm text-gray-700 hover:underline">
-                Forgot Password ?
-              </a>
-            </div>
-
-            <div className="flex justify-center">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-[#003E9C] text-white px-8 py-2 rounded-md font-medium shadow hover:bg-[#002F6C] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {loading ? "Logging in..." : "Log In"}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#003E9C] text-white py-2 rounded-lg font-semibold hover:bg-[#002d73] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {loading ? "Logging in..." : "Log In"}
+            </button>
           </form>
 
           <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-gray-900">
               Do not have an account?{" "}
-              <Link to="/register" className="font-semibold hover:underline text-[#003E9C]">
+              <Link
+                to="/register"
+                className="font-semibold hover:underline text-[#003E9C]"
+              >
                 Sign Up now
               </Link>
             </p>
