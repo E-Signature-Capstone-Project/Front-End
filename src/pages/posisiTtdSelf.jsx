@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FaArrowLeft, FaCheckCircle, FaExpand } from "react-icons/fa";
-import SignatureForm from "../components/SignatureForm";
+import { FaArrowLeft, FaCheckCircle, FaExpand, FaQrcode } from "react-icons/fa"; // Tambah Icon QR
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import QRCode from "qrcode"; // Import Library QR Code
 
 export default function PosisiTtdSelf() {
   const navigate = useNavigate();
   const [fileUrl, setFileUrl] = useState(null);
   const [fileName, setFileName] = useState("");
+  // signatureData tidak lagi dibutuhkan untuk validasi input, tapi state dibiarkan biar gak error
   const [signatureData, setSignatureData] = useState(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [signatureArea, setSignatureArea] = useState(null);
@@ -26,17 +27,9 @@ export default function PosisiTtdSelf() {
   useEffect(() => {
     const savedFileUrl = localStorage.getItem("uploadedFileUrl");
     const savedFileName = localStorage.getItem("uploadedFileName");
-    const savedSignature = localStorage.getItem("signatureData");
 
     if (savedFileUrl) setFileUrl(savedFileUrl);
     if (savedFileName) setFileName(savedFileName);
-    if (savedSignature) {
-      console.log("📋 Loaded signature from localStorage:", {
-        length: savedSignature.length,
-        preview: savedSignature.substring(0, 50) + "...",
-      });
-      setSignatureData(savedSignature);
-    }
   }, []);
 
   useEffect(() => {
@@ -67,8 +60,8 @@ export default function PosisiTtdSelf() {
     const x = e.clientX - rect.left + containerRef.current.scrollLeft;
     const y = e.clientY - rect.top + containerRef.current.scrollTop;
 
-    const defaultWidth = 96;
-    const defaultHeight = 96;
+    const defaultWidth = 100; // Ukuran default agak besar dikit buat QR
+    const defaultHeight = 100;
 
     const newArea = {
       x: Math.max(0, x - defaultWidth / 2),
@@ -169,100 +162,41 @@ export default function PosisiTtdSelf() {
     localStorage.removeItem("uploadedDocumentId");
   };
 
+  // Fungsi Convert Base64 ke Blob (Penting untuk upload gambar)
   const base64ToBlob = (base64String) => {
     try {
-      console.log("🔄 Converting base64 to blob...");
-
-      if (!base64String || typeof base64String !== "string") {
-        throw new Error("Invalid base64 string: not a string");
+      const byteString = atob(base64String.split(',')[1]);
+      const mimeString = base64String.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
       }
-
-      let base64Data;
-      let mimeType = "image/png";
-
-      if (base64String.startsWith("data:")) {
-        const matches = base64String.match(/^data:([A-Za-z0-9+/\-]+);base64,(.+)$/);
-
-        if (matches && matches.length === 3) {
-          mimeType = matches[1];
-          base64Data = matches[2];
-        } else {
-          throw new Error("Invalid data URL format");
-        }
-      } else {
-        base64Data = base64String;
-      }
-
-      base64Data = base64Data
-        .trim()
-        .replace(/\s+/g, "")
-        .replace(/[^A-Za-z0-9+/=]/g, "");
-
-      const paddingNeeded = (4 - (base64Data.length % 4)) % 4;
-      if (paddingNeeded > 0) {
-        base64Data += "=".repeat(paddingNeeded);
-      }
-
-      console.log("📊 Base64 stats:", {
-        originalLength: base64String.length,
-        cleanedLength: base64Data.length,
-        mimeType: mimeType,
-      });
-
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Uint8Array(byteCharacters.length);
-
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-
-      const blob = new Blob([byteNumbers], { type: mimeType });
-
-      if (blob.size === 0) {
-        throw new Error("Generated blob is empty (size = 0)");
-      }
-
-      if (blob.size < 100) {
-        throw new Error(`Generated blob too small (size = ${blob.size} bytes)`);
-      }
-
-      console.log("✅ Blob created successfully:", {
-        size: blob.size,
-        type: blob.type,
-      });
-
-      return blob;
+      return new Blob([ab], { type: mimeString });
     } catch (error) {
       console.error("❌ base64ToBlob error:", error);
       throw new Error(`Failed to convert signature: ${error.message}`);
     }
   };
 
+  // === FUNGSI UTAMA: TEMPEL QR CODE (MODIFIED) ===
   const handleTempelTandaTangan = async () => {
+    // 1. Cek Area
     if (!signatureArea) {
       Swal.fire({
         icon: "warning",
         title: "Pilih Area",
-        text: "Silakan pilih area untuk QR Code",
+        text: "Silakan klik pada dokumen untuk menempatkan QR Code",
         confirmButtonColor: "#003E9C",
       });
       return;
     }
 
-    if (!signatureData) {
-      Swal.fire({
-        icon: "warning",
-        title: "Tanda Tangan Diperlukan",
-        text: "Silakan buat tanda tangan terlebih dahulu",
-        confirmButtonColor: "#003E9C",
-      });
-      setShowSignatureModal(true);
-      return;
-    }
+    // Note: Kita HAPUS pengecekan !signatureData karena kita generate otomatis
 
     Swal.fire({
       title: "Memproses...",
-      text: "Sedang menandatangani dokumen",
+      text: "Sedang membuat & menempel QR Code",
       allowOutsideClick: false,
       showConfirmButton: false,
       willOpen: () => {
@@ -272,61 +206,52 @@ export default function PosisiTtdSelf() {
 
     try {
       const token = localStorage.getItem("token");
-      const uploadedDocId = localStorage.getItem("uploadedDocumentId");
+      let uploadedDocId = localStorage.getItem("uploadedDocumentId");
 
       if (!token) {
-        Swal.fire({
-          icon: "error",
-          title: "Session Expired",
-          text: "Silakan login kembali",
-          confirmButtonColor: "#003E9C",
-        });
+        Swal.fire({ icon: "error", title: "Session Expired", text: "Silakan login kembali" });
         navigate("/login");
         return;
       }
 
-      let documentId = uploadedDocId;
-
-      if (!documentId) {
+      // 2. Fallback jika ID Dokumen hilang dari localStorage
+      if (!uploadedDocId) {
         console.log("⚠️ uploadedDocumentId tidak ada, mencari berdasarkan fileName...");
         const docsResponse = await fetch(`${API_BASE_URL}/documents/`, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         });
 
-        if (!docsResponse.ok) {
-          throw new Error("Gagal mengambil data dokumen");
-        }
-
+        if (!docsResponse.ok) throw new Error("Gagal mengambil data dokumen");
         const docsData = await docsResponse.json();
-        console.log("📦 Documents dari API:", docsData);
-
+        
         const targetDoc = docsData.find(
-          (doc) =>
-            doc.title === fileName ||
-            doc.file_path.includes(fileName) ||
-            doc.title.includes(fileName.replace(".pdf", ""))
+          (doc) => doc.title === fileName || doc.file_path.includes(fileName)
         );
 
-        if (!targetDoc) {
-          throw new Error("Dokumen tidak ditemukan di database");
-        }
-
-        documentId = targetDoc.document_id;
-        console.log("✅ Dokumen ditemukan dari pencarian:", documentId);
+        if (!targetDoc) throw new Error("Dokumen tidak ditemukan di database. Coba upload ulang.");
+        uploadedDocId = targetDoc.document_id;
       }
 
-      console.log("✅ Final documentId yang akan dipakai:", documentId);
+      // 3. === MAGIC START: GENERATE QR CODE ===
+      // Ambil alamat website (Frontend) saat ini. 
+      const appBaseUrl = window.location.origin; 
+      const verificationLink = `${appBaseUrl}/verif-log/${uploadedDocId}`;
+      
+      console.log("🔗", verificationLink);
 
+      // Buat gambar QR (Base64)
+      const qrBase64 = await QRCode.toDataURL(verificationLink, { 
+        width: 300, 
+        margin: 1,
+        color: { dark: '#000000', light: '#FFFFFF' }
+      });
+
+      // 4. Hitung Koordinat PDF
       const iframeRect = iframeRef.current?.getBoundingClientRect();
       const containerRect = containerRef.current.getBoundingClientRect();
-
       const displayWidth = iframeRect ? iframeRect.width : containerRect.width;
       const displayHeight = iframeRect ? iframeRect.height : containerRect.height;
-
       const scaleX = PDF_WIDTH_POINTS / displayWidth;
       const scaleY = PDF_HEIGHT_POINTS / displayHeight;
 
@@ -335,63 +260,49 @@ export default function PosisiTtdSelf() {
       const pdfSigWidth = signatureArea.width * scaleX;
       const pdfSigHeight = signatureArea.height * scaleY;
 
-      console.log("📐 PDF coordinates:", {
-        x: Math.round(pdfSigX),
-        y: Math.round(pdfSigY),
-        width: Math.round(pdfSigWidth),
-        height: Math.round(pdfSigHeight),
-      });
+      // 5. Convert QR Base64 ke Blob File
+      const blob = base64ToBlob(qrBase64);
 
-      console.log("🔄 Converting signature to blob...");
-      const blob = base64ToBlob(signatureData);
-
+      // 6. Siapkan FormData
       const formData = new FormData();
-      formData.append("signatureImage", blob, "signature.png");
+      formData.append("signatureImage", blob, "qrcode.png"); // Kirim sebagai signatureImage
       formData.append("pageNumber", "1");
       formData.append("x", String(Math.round(pdfSigX)));
       formData.append("y", String(Math.round(pdfSigY)));
       formData.append("width", String(Math.round(pdfSigWidth)));
       formData.append("height", String(Math.round(pdfSigHeight)));
 
-      console.log("📤 Sending FormData with signature image to /sign endpoint");
-
-      const response = await fetch(`${API_BASE_URL}/documents/${documentId}/sign`, {
+      // 7. Kirim ke Backend
+      const response = await fetch(`${API_BASE_URL}/documents/${uploadedDocId}/sign`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
       const result = await response.json();
-      console.log("📥 Backend response:", result);
 
       if (!response.ok) {
-        throw new Error(result.error || result.message || "Gagal menandatangani dokumen");
+        throw new Error(result.error || result.message || "Gagal menempel QR");
       }
 
-      localStorage.setItem("lastSignedDocument", documentId);
+      localStorage.setItem("lastSignedDocument", uploadedDocId);
       clearWorkflowFlags();
 
+      // === MODIFIKASI DISINI: TEKS JADI "Detail Dokumen" ===
       await Swal.fire({
         icon: "success",
         title: "Berhasil!",
-        html: `
-          <p>${result.message || "Dokumen berhasil ditandatangani"}</p>
-          <p class="text-sm text-gray-600 mt-2">✅ QR Code otomatis ditambahkan di dokumen</p>
-        `,
+        html: `QR Code berhasil ditempel! <br> <small> <a href="${verificationLink}" target="_blank" style="color: blue; text-decoration: underline; font-weight: bold;">Detail Dokumen</a></small>`,
         confirmButtonColor: "#003E9C",
       });
 
       navigate("/dashboard");
     } catch (error) {
-      console.error("❌ SELF SIGN error:", error);
-      clearWorkflowFlags();
-
+      console.error("❌ QR Process error:", error);
       Swal.fire({
         icon: "error",
         title: "Gagal",
-        text: error.message || "Terjadi kesalahan saat menandatangani dokumen",
+        text: error.message || "Terjadi kesalahan sistem",
         confirmButtonColor: "#003E9C",
       });
     }
@@ -446,7 +357,7 @@ export default function PosisiTtdSelf() {
 
                 {signatureArea && (
                   <div
-                    className="signature-box absolute border-4 border-blue-500 rounded-lg shadow-2xl cursor-move overflow-hidden bg-white/70"
+                    className="signature-box absolute border-4 border-blue-500 rounded-lg shadow-2xl cursor-move overflow-hidden bg-white/80 flex justify-center items-center"
                     style={{
                       left: `${signatureArea.x}px`,
                       top: `${signatureArea.y}px`,
@@ -457,6 +368,9 @@ export default function PosisiTtdSelf() {
                     }}
                     onMouseDown={handleMouseDown}
                   >
+                    {/* Visualisasi QR di kotak */}
+                    <FaQrcode className="text-5xl text-black opacity-70" />
+
                     <div
                       className="absolute bottom-0 right-0 w-7 h-7 bg-blue-500 rounded-tl-lg cursor-nwse-resize flex items-center justify-center hover:bg-blue-600 transition"
                       onMouseDown={handleResizeMouseDown}
@@ -467,20 +381,14 @@ export default function PosisiTtdSelf() {
                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center pointer-events-none shadow-lg">
                       <FaCheckCircle className="text-white text-sm" />
                     </div>
-
-                    <div className="absolute -bottom-7 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap">
-                      QR • {Math.round(signatureArea.width)} ×{" "}
-                      {Math.round(signatureArea.height)} px
-                    </div>
                   </div>
                 )}
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <FaArrowLeft className="text-6xl text-gray-300 mx-auto mb-4 rotate-90" />
                   <p className="text-gray-400 text-lg font-medium">
-                    Belum ada dokumen
+                    Loading dokumen...
                   </p>
                 </div>
               </div>
@@ -498,8 +406,7 @@ export default function PosisiTtdSelf() {
           {signatureArea && (
             <div className="bg-green-50 border-t-2 border-green-200 px-4 py-3">
               <p className="text-sm text-green-700 text-center font-medium">
-                ✅ Posisi sudah dipilih • Drag untuk pindah • Resize di pojok
-                kanan bawah •
+                ✅ Posisi QR Code dipilih • Klik tombol di bawah untuk menempel.
                 <button
                   onClick={() => {
                     setSignatureArea(null);
@@ -520,38 +427,9 @@ export default function PosisiTtdSelf() {
               onClick={handleTempelTandaTangan}
               className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95"
             >
-              <FaCheckCircle className="text-2xl" />
+              <FaQrcode className="text-2xl" />
               <span>Tempel QR Code</span>
             </button>
-          </div>
-        )}
-
-        {showSignatureModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-3xl relative shadow-2xl">
-              <button
-                onClick={() => setShowSignatureModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl"
-              >
-                ✕
-              </button>
-              <h2 className="text-xl font-semibold text-center mb-4">
-                Tanda Tangan
-              </h2>
-
-              <SignatureForm
-                onConfirm={(data) => {
-                  if (typeof data === "object" && data.base64) {
-                    localStorage.setItem("signatureData", data.base64);
-                    setSignatureData(data.base64);
-                  } else {
-                    localStorage.setItem("signatureData", data);
-                    setSignatureData(data);
-                  }
-                  setShowSignatureModal(false);
-                }}
-              />
-            </div>
           </div>
         )}
       </main>

@@ -20,6 +20,7 @@ import AdminVerifLog from "./pages/verifadmin";
 import ApproveAdmin from "./pages/Approveadmin";
 import AdminProfile from "./pages/Adminprofil";
 
+
 function App() {
   return (
     <Router>
@@ -49,6 +50,7 @@ function App() {
         <Route path="/drawsignature" element={<Drawsignature />} />
         <Route path="/uploadsignature" element={<Uploadsignature />} />
         <Route path="/completed" element={<Completed />} />
+        <Route path="/verif-log/:docId" element={<VerifLog />} />
 
         {/* Baseline Sign */}
         <Route path="/baseline-sign" element={<BaselineSign />} />

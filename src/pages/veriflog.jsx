@@ -1,227 +1,317 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar"; // Pastikan path benar
-import Header from "../components/Header";   // Pastikan path benar
-import { FaFileDownload, FaCheckCircle, FaTimesCircle, FaExclamationCircle } from "react-icons/fa";
-
-const API_BASE = "http://localhost:4000"; // Sesuaikan port backend kamu
+import Sidebar from "../components/Sidebar"; 
+import Header from "../components/Header";    
+import { 
+  FaCheckCircle, FaTimesCircle, FaExclamationCircle, 
+  FaUserTie, FaCalendarAlt, FaFileContract, FaEye, FaArrowLeft, FaSearch, FaShieldAlt, FaCopy, FaRegClipboard
+} from "react-icons/fa";
 
 export default function VerifLog() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
 
-  // 1. Ambil ID dari URL (Scan QR) ATAU dari State (Klik Riwayat)
-  const { docId: stateDocId } = location.state || {};
-  const finalDocId = stateDocId || params.docId;
+  // --- KONFIGURASI ---
+  const API_BASE = `http://${window.location.hostname}:3001`; 
+  const viewId = params.docId || params.id; 
+  const isDetailMode = !!viewId;
 
-  const [doc, setDoc] = useState(null);
-  const [log, setLog] = useState(null);
+  // --- STATE ---
+  const [logList, setLogList] = useState([]); 
+  const [docDetail, setDocDetail] = useState(null); 
+  const [signatures, setSignatures] = useState([]); 
+  
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isPublicView, setIsPublicView] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [copyStatus, setCopyStatus] = useState("Copy Text");
 
+  // --- EFFECT ---
   useEffect(() => {
-    if (!finalDocId) {
-      setErrorMsg("Tidak ada dokumen yang dipilih.");
-      setLoading(false);
-      return;
-    }
+    const token = localStorage.getItem("token");
+    setIsLoggedIn(!!token);
 
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        
-        let docUrl;
-        let headers = { "Content-Type": "application/json" };
-
-        // === LOGIKA PENENTU JALUR ===
-        if (token) {
-          // A. JIKA LOGIN: Pakai jalur Private
-          setIsPublicView(false);
-          docUrl = `${API_BASE}/documents/${finalDocId}`;
-          headers.Authorization = `Bearer ${token}`;
-        } else {
-          // B. JIKA TIDAK LOGIN (Scan QR): Pakai jalur Public
-          setIsPublicView(true);
-          docUrl = `${API_BASE}/documents/public/verify/${finalDocId}`;
-          // Tidak perlu header Authorization
-        }
-
-        // 1. Fetch Data Dokumen
-        const resDoc = await fetch(docUrl, { headers });
-
-        if (!resDoc.ok) {
-          if (resDoc.status === 404) throw new Error("Dokumen tidak ditemukan.");
-          if (resDoc.status === 401) throw new Error("Akses ditolak. Silakan login.");
-          throw new Error("Gagal mengambil data dokumen.");
-        }
-
-        const docData = await resDoc.json();
-        setDoc(docData);
-
-        // 2. Fetch Logs (HANYA JIKA LOGIN)
-        // Kalau public, kita skip fetch logs karena endpoint logs biasanya diproteksi
-        if (token) {
-          const resLog = await fetch(`${API_BASE}/logs`, { headers });
-          if (resLog.ok) {
-            const logsData = await resLog.json();
-            // Filter log milik dokumen ini
-            const filtered = Array.isArray(logsData)
-              ? logsData.filter((entry) => entry.document_id === Number(finalDocId))
-              : [];
-            setLog(filtered.length > 0 ? filtered[0] : null);
-          }
-        }
-
-      } catch (err) {
-        console.error("Error Fetching:", err);
-        setErrorMsg(err.message);
-      } finally {
-        setLoading(false);
+    if (isDetailMode) {
+      fetchDetailDocument(viewId);
+    } else {
+      if (token) {
+        fetchLogList(token);
+      } else {
+        navigate("/login");
       }
-    };
+    }
+  }, [viewId, navigate]);
 
-    loadData();
-  }, [finalDocId]);
-
-  // --- Helper untuk Warna Status ---
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "verified":
-        return <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit"><FaCheckCircle /> Terverifikasi Valid</span>;
-      case "fake":
-      case "rejected":
-        return <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit"><FaTimesCircle /> Terindikasi Palsu</span>;
-      default:
-        return <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 w-fit"><FaExclamationCircle /> Menunggu Verifikasi</span>;
+  // --- FETCHING ---
+  const fetchLogList = async (token) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/documents`, { 
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const signedDocs = data.filter(doc => doc.status === 'signed' || doc.status === 'completed');
+        setLogList(signedDocs); 
+      }
+    } catch (err) {
+      console.error("List Error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const fetchDetailDocument = async (id) => {
+    try {
+      setLoading(true);
+      setErrorMsg("");
+      const response = await fetch(`${API_BASE}/requests/public/${id}`);
+      if (!response.ok) throw new Error("Dokumen tidak ditemukan atau URL tidak valid.");
+      const result = await response.json();
+      if (result.success) {
+        setDocDetail(result.document);
+        setSignatures(result.signatures || []);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- HELPER ---
+  const filteredList = logList.filter(item => 
+    item.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatTanggal = (isoString) => {
+    if(!isoString) return "-";
+    const date = new Date(isoString);
+    return new Intl.DateTimeFormat('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    }).format(date);
+  };
+
+  const handleCopy = () => {
+    if (!docDetail) return;
+    
+    // Format teks clipboard
+    const signerName = signatures.length > 0 ? signatures[0].signer?.name : docDetail.owner?.name;
+    const date = signatures.length > 0 ? formatTanggal(signatures[0].updated_at) : "-";
+    
+    const textToCopy = `Reference ID: ${docDetail.id}\nTanggal: ${date}\nPenandatangan: ${signerName}\nDokumen: ${docDetail.title}`;
+    
+    navigator.clipboard.writeText(textToCopy);
+    setCopyStatus("Tersalin!");
+    setTimeout(() => setCopyStatus("Copy Text"), 2000);
+  };
+
   return (
-    <div className="flex min-h-screen bg-[#EEF3FA]">
-      {/* Sidebar hanya muncul jika bukan mode public/tamu (opsional) */}
-      {!isPublicView && <Sidebar navigate={navigate} pathname={location.pathname} />}
+    <div className="flex min-h-screen bg-gray-50 font-sans text-gray-800">
       
-      <div className={`flex-1 ${!isPublicView ? "md:ml-64" : ""} transition-all`}>
-        <Header />
+      {isLoggedIn && <Sidebar navigate={navigate} pathname={location.pathname} />}
+      
+      <div className={`flex-1 flex flex-col ${isLoggedIn ? "md:ml-64" : "w-full"} transition-all duration-300`}>
         
-        <div className="pt-24 px-4 md:px-8 pb-10">
-          
-          {/* --- Loading State --- */}
-          {loading && (
-            <div className="flex flex-col items-center justify-center mt-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-500">Memverifikasi keaslian dokumen...</p>
+        {isLoggedIn ? <Header /> : (
+            <div className="bg-white shadow-sm py-4 px-6 flex items-center justify-center border-b border-gray-100">
+                <div className="flex items-center gap-2 text-blue-700 font-bold text-xl">
+                    <FaShieldAlt /> <span>Verification Result</span>
+                </div>
             </div>
-          )}
+        )}
 
-          {/* --- Error State --- */}
-          {!loading && errorMsg && (
-            <div className="max-w-2xl mx-auto bg-red-50 border border-red-200 text-red-700 p-6 rounded-xl text-center shadow-sm mt-10">
-              <FaExclamationCircle className="text-4xl mx-auto mb-3 opacity-50"/>
-              <h3 className="text-lg font-bold">Terjadi Kesalahan</h3>
-              <p>{errorMsg}</p>
-              <button onClick={() => navigate(-1)} className="mt-4 text-sm underline hover:text-red-900">
-                Kembali
-              </button>
-            </div>
-          )}
+        <div className={`flex-1 px-6 md:px-12 pb-10 ${isLoggedIn ? "pt-6" : "pt-10"}`}>
 
-          {/* --- Success State (Data Ada) --- */}
-          {!loading && doc && !errorMsg && (
-            <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-              
-              {/* Header Card */}
-              <div className="bg-blue-900 p-6 text-white">
-                <h2 className="text-xl md:text-2xl font-bold">Hasil Verifikasi Dokumen</h2>
-                <p className="text-blue-200 text-sm mt-1">ID Dokumen: #{doc.id}</p>
+          {/* === MODE HISTORY (LIST TABLE) === */}
+          {!isDetailMode && isLoggedIn && (
+            <div className="max-w-6xl mx-auto animate-fade-in">
+               <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-800">Arsip Digital</h1>
+                  <p className="text-gray-500 text-sm mt-1">Daftar dokumen yang telah ditandatangani.</p>
+                </div>
+                <div className="relative w-full md:w-72">
+                  <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Cari dokumen..." 
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm text-sm"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="p-6 md:p-8 grid md:grid-cols-2 gap-8">
-                
-                {/* Kolom Kiri: Detail Teks */}
-                <div className="space-y-6">
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Judul Dokumen</label>
-                    <p className="text-xl font-semibold text-gray-800 mt-1">{doc.title || doc.name}</p>
-                  </div>
+              {loading ? (
+                <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gray-50 text-gray-500 uppercase text-xs font-bold tracking-wider">
+                      <tr>
+                        <th className="p-4 border-b">Dokumen</th>
+                        <th className="p-4 border-b">Tanggal</th>
+                        <th className="p-4 border-b text-center">Status</th>
+                        <th className="p-4 border-b text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredList.length > 0 ? filteredList.map((doc) => (
+                        <tr key={doc.document_id} className="hover:bg-gray-50 transition duration-150">
+                          <td className="p-4 font-medium text-gray-800">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-blue-50 rounded-lg text-blue-500"><FaFileContract size={16}/></div>
+                              <span className="truncate max-w-xs block text-sm">{doc.title}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-sm text-gray-500">
+                            {new Date(doc.created_at).toLocaleDateString("id-ID")}
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 uppercase tracking-wide">
+                              Signed
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <button 
+                              onClick={() => navigate(`/verif-log/${doc.document_id}`)}
+                              className="text-gray-400 hover:text-blue-600 transition"
+                              title="Lihat Detail"
+                            >
+                              <FaEye size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan="4" className="p-8 text-center text-gray-400 text-sm">Tidak ada data.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
-                  <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status Validitas</label>
-                    <div className="mt-2">
-                      {getStatusBadge(doc.status)}
-                    </div>
-                  </div>
+          {/* === MODE DETAIL (WEB LAYOUT - WIDE) === */}
+          {isDetailMode && (
+            <div className="max-w-4xl mx-auto relative pt-4">
+              
+              {/* Tombol Back */}
+              {isLoggedIn ? (
+                  <button onClick={() => navigate('/verif-log')} className="mb-6 w-10 h-10 flex items-center justify-center bg-white text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full shadow-sm border border-gray-200 transition-all duration-200"><FaArrowLeft size={16}/></button>
+              ) : (
+                  <button onClick={() => navigate('/login')} className="mb-6 flex items-center gap-2 text-sm text-gray-400 hover:text-blue-600 transition"><FaArrowLeft size={12}/> Login</button>
+              )}
 
-                  {/* Tampilkan Detail Log jika ada (Hanya Mode Login) */}
-                  {log && (
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-bold text-gray-700 mb-2 border-b pb-2">Detail Analisis AI</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Hasil:</span>
-                          <span className="font-medium">{log.verification_result}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Skor Kemiripan:</span>
-                          <span className="font-medium text-blue-600">{log.similarity_score}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Waktu Verifikasi:</span>
-                          <span className="font-medium">
-                            {log.timestamp ? new Date(log.timestamp).toLocaleString("id-ID") : "-"}
-                          </span>
-                        </div>
+              {loading && <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>}
+
+              {!loading && errorMsg && (
+                <div className="bg-white p-8 rounded-2xl shadow-lg text-center border-t-4 border-red-500 animate-fade-in-up">
+                    <FaTimesCircle className="text-4xl text-red-500 mx-auto mb-3"/>
+                    <h2 className="text-lg font-bold text-gray-800">Verifikasi Gagal</h2>
+                    <p className="text-sm text-gray-500 mt-1">{errorMsg}</p>
+                </div>
+              )}
+
+              {/* === CARD UTAMA (WIDE WEB STYLE) === */}
+              {!loading && !errorMsg && docDetail && (
+                <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden animate-fade-in-up min-h-[500px]">
+                  
+                  {/* Bagian Atas: Icon & Judul (Centered) */}
+                  <div className="pt-10 pb-6 flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+                      <div className="bg-slate-700 text-white w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-serif shadow-lg mb-4">
+                          {signatures.length > 0 ? "E" : "!"}
                       </div>
-                    </div>
-                  )}
+                      <h2 className="text-3xl font-normal text-slate-700 tracking-wide">Result</h2>
+                      <p className="text-xs text-gray-400 mt-2 uppercase tracking-widest font-semibold">QR Code Details</p>
+                  </div>
 
-                  {/* Tombol Download */}
-                  {doc.status === "verified" && (
-                    <a
-                      href={`${API_BASE}/documents/${finalDocId}/download`} // Pastikan backend punya route ini
-                      className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-md hover:shadow-lg mt-6"
-                      download // Atribut download
+                  <hr className="border-gray-100 mx-8 mb-8"/>
+
+                  {/* Bagian Tengah: Grid 2 Kolom (Web Layout) */}
+                  <div className="px-10 pb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-8 text-gray-700 font-medium text-[15px] leading-relaxed">
+                          
+                          {/* KIRI */}
+                          <div className="space-y-6">
+                              <div>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-1">Reference ID</p>
+                                <p className="font-mono text-sm bg-gray-50 inline-block px-2 py-1 rounded border border-gray-200 text-gray-600">{docDetail.id}</p>
+                              </div>
+
+                              <div>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-1">Penandatangan</p>
+                                <div className="flex items-center gap-2">
+                                    <FaUserTie className="text-gray-300"/>
+                                    <p>{signatures.length > 0 ? signatures[0].signer?.name : docDetail.owner?.name}</p>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-1">Keterangan</p>
+                                <p className="flex items-center gap-2 text-green-700 bg-green-50 w-fit px-3 py-1 rounded-full text-xs font-bold">
+                                    <FaCheckCircle/> Digital Document Verification
+                                </p>
+                              </div>
+                          </div>
+
+                          {/* KANAN */}
+                          <div className="space-y-6">
+                              <div>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-1">Tanggal</p>
+                                <div className="flex items-center gap-2">
+                                    <FaCalendarAlt className="text-gray-300"/>
+                                    <p>{signatures.length > 0 ? formatTanggal(signatures[0].updated_at) : "Belum ditandatangani"}</p>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-1">Dokumen</p>
+                                <div className="flex items-start gap-2">
+                                    <FaFileContract className="text-blue-500 mt-1 flex-shrink-0"/>
+                                    <p className="text-blue-600 break-all leading-tight underline decoration-blue-200 underline-offset-4">
+                                        {docDetail.title}
+                                    </p>
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider mb-1">Status Sistem</p>
+                                <p className="text-gray-500 text-sm">System Verified (Valid)</p>
+                              </div>
+                          </div>
+
+                      </div>
+                  </div>
+
+                  {/* Bagian Bawah: Tombol Copy (Full Width tapi Padding lega) */}
+                  <div className="p-10 mt-2">
+                    <button 
+                        onClick={handleCopy}
+                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-xl transition duration-200 flex items-center justify-center gap-3 shadow-sm border border-slate-200"
                     >
-                      <FaFileDownload className="inline mb-1 mr-2"/> Unduh Asli
-                    </a>
-                  )}
-                </div>
+                        {copyStatus === "Tersalin!" ? <FaCheckCircle className="text-green-600 text-lg"/> : <FaRegClipboard className="text-lg"/>}
+                        {copyStatus}
+                    </button>
+                  </div>
 
-                {/* Kolom Kanan: Preview File */}
-                <div className="bg-gray-100 rounded-xl overflow-hidden border border-gray-200 flex items-center justify-center min-h-[300px]">
-                  {doc.file_path ? (
-                    doc.file_path.toLowerCase().endsWith(".pdf") ? (
-                      <iframe
-                        src={`${API_BASE}/${doc.file_path}`}
-                        className="w-full h-[400px]"
-                        title="Preview"
-                      />
-                    ) : (
-                      <img
-                        src={`${API_BASE}/${doc.file_path}`}
-                        alt="Preview Dokumen"
-                        className="w-full h-auto object-contain max-h-[400px]"
-                      />
-                    )
-                  ) : (
-                    <p className="text-gray-400 italic">Preview tidak tersedia</p>
-                  )}
                 </div>
-
-              </div>
-              
-              {/* Footer Card */}
-              <div className="bg-gray-50 px-6 py-4 border-t text-center text-xs text-gray-500">
-                Sistem Verifikasi Dokumen Digital &copy; 2025
-              </div>
+              )}
             </div>
           )}
 
         </div>
       </div>
+      <style>{`
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+        .animate-fade-in-up { animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      `}</style>
     </div>
   );
 }
