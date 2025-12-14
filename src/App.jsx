@@ -13,7 +13,10 @@ import Completed from "./components/completed";
 import RequestHistory from "./pages/RequestHistory";
 import BaselineSign from "./pages/BaselinSign";
 import SignatureForm from "./components/SignatureForm"; // ⬅️ baru
-
+import AdminLogin from "./pages/loginadmin";
+import AdminVerifLog from "./pages/verifadmin";
+import ApproveAdmin from "./pages/Approveadmin";
+import AdminProfile from "./pages/Adminprofil";
 function App() {
   return (
     <Router>
@@ -45,6 +48,12 @@ function App() {
         {/* Baseline sign */}
         <Route path="/baseline-sign" element={<BaselineSign />} />
         <Route path="/baseline" element={<BaselineSign />} />
+
+        {/* Admin */}
+        <Route path="/admin/verif-log" element={<AdminVerifLog />} />
+        <Route path="/adminlogin" element={<AdminLogin />} />
+        <Route path="/admin/approve" element={<ApproveAdmin />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
       </Routes>
     </Router>
   );
