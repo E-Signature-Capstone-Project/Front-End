@@ -1,26 +1,39 @@
-import React, { useEffect, useState, useRef } from "react";
-import { FaArrowLeft, FaCheckCircle, FaExpand, FaQrcode } from "react-icons/fa"; // Tambah Icon QR
+import { useEffect, useState, useRef } from "react";
+import { FaArrowLeft, FaCheckCircle, FaExpand, FaQrcode } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
-import QRCode from "qrcode"; // Import Library QR Code
+import QRCode from "qrcode";
 
 export default function PosisiTtdSelf() {
   const navigate = useNavigate();
   const [fileUrl, setFileUrl] = useState(null);
   const [fileName, setFileName] = useState("");
-  // signatureData tidak lagi dibutuhkan untuk validasi input, tapi state dibiarkan biar gak error
-  const [signatureData, setSignatureData] = useState(null);
-  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  
+  // State layout
   const [signatureArea, setSignatureArea] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [pdfDimensions, setPdfDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef(null);
   const iframeRef = useRef(null);
   const dragStart = useRef({ x: 0, y: 0 });
   const [clickMode, setClickMode] = useState("signature");
 
-  const API_BASE_URL = "http://localhost:3001";
+  // ===========================================================================
+  // 🟢 KONFIGURASI URL (WAJIB DIISI)
+  // ===========================================================================
+  
+  // 1. Masukkan URL Ngrok Backend kamu di sini (tanpa slash di akhir)
+  //    Contoh: "https://a1b2-103-100-200.ngrok-free.dev"
+  const BASE_URL_NGROK = "https://unprejudicially-urethral-alexandra.ngrok-free.dev"; 
+
+  // 2. URL untuk Fetch API (Bisa tetap localhost agar cepat di laptop)
+  const API_BASE_URL = "http://localhost:3001"; 
+  
+  // ===========================================================================
+
+  // Ukuran standar A4 dalam Points (72 DPI)
   const PDF_WIDTH_POINTS = 595.28;
   const PDF_HEIGHT_POINTS = 841.89;
 
@@ -41,14 +54,13 @@ export default function PosisiTtdSelf() {
           height: rect.height,
         });
       };
-
       setTimeout(updateDimensions, 1000);
       window.addEventListener("resize", updateDimensions);
-
       return () => window.removeEventListener("resize", updateDimensions);
     }
   }, [fileUrl]);
 
+  // --- LOGIKA KLIK & GESER AREA ---
   const handleClickArea = (e) => {
     if (!clickMode) return;
     if (isDragging || isResizing) return;
@@ -60,17 +72,15 @@ export default function PosisiTtdSelf() {
     const x = e.clientX - rect.left + containerRef.current.scrollLeft;
     const y = e.clientY - rect.top + containerRef.current.scrollTop;
 
-    const defaultWidth = 100; // Ukuran default agak besar dikit buat QR
+    const defaultWidth = 100; 
     const defaultHeight = 100;
 
-    const newArea = {
+    setSignatureArea({
       x: Math.max(0, x - defaultWidth / 2),
       y: Math.max(0, y - defaultHeight / 2),
       width: defaultWidth,
       height: defaultHeight,
-    };
-
-    setSignatureArea(newArea);
+    });
     setClickMode(null);
   };
 
@@ -78,7 +88,6 @@ export default function PosisiTtdSelf() {
     if (!signatureArea) return;
     e.stopPropagation();
     setIsDragging(true);
-
     const rect = containerRef.current.getBoundingClientRect();
     dragStart.current = {
       x: e.clientX - rect.left + containerRef.current.scrollLeft - signatureArea.x,
@@ -88,17 +97,13 @@ export default function PosisiTtdSelf() {
 
   const handleMouseMove = (e) => {
     if (!isDragging || !containerRef.current) return;
-
     const rect = containerRef.current.getBoundingClientRect();
     const scrollLeft = containerRef.current.scrollLeft;
     const scrollTop = containerRef.current.scrollTop;
-
     const newX = e.clientX - rect.left + scrollLeft - dragStart.current.x;
     const newY = e.clientY - rect.top + scrollTop - dragStart.current.y;
-
     const maxX = containerRef.current.scrollWidth - signatureArea.width;
     const maxY = containerRef.current.scrollHeight - signatureArea.height;
-
     setSignatureArea({
       ...signatureArea,
       x: Math.max(0, Math.min(newX, maxX)),
@@ -124,18 +129,11 @@ export default function PosisiTtdSelf() {
 
   const handleResizeMouseMove = (e) => {
     if (!isResizing) return;
-
     const deltaX = e.clientX - dragStart.current.x;
     const deltaY = e.clientY - dragStart.current.y;
-
     let newWidth = Math.max(60, dragStart.current.width + deltaX);
     let newHeight = Math.max(60, dragStart.current.height + deltaY);
-
-    setSignatureArea({
-      ...signatureArea,
-      width: newWidth,
-      height: newHeight,
-    });
+    setSignatureArea({ ...signatureArea, width: newWidth, height: newHeight });
   };
 
   useEffect(() => {
@@ -146,7 +144,6 @@ export default function PosisiTtdSelf() {
       document.addEventListener("mousemove", handleResizeMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     }
-
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mousemove", handleResizeMouseMove);
@@ -162,7 +159,6 @@ export default function PosisiTtdSelf() {
     localStorage.removeItem("uploadedDocumentId");
   };
 
-  // Fungsi Convert Base64 ke Blob (Penting untuk upload gambar)
   const base64ToBlob = (base64String) => {
     try {
       const byteString = atob(base64String.split(',')[1]);
@@ -179,9 +175,9 @@ export default function PosisiTtdSelf() {
     }
   };
 
-  // === FUNGSI UTAMA: TEMPEL QR CODE (MODIFIED) ===
+  // === FUNGSI UTAMA: TEMPEL QR CODE PUBLIC ===
   const handleTempelTandaTangan = async () => {
-    // 1. Cek Area
+    
     if (!signatureArea) {
       Swal.fire({
         icon: "warning",
@@ -192,16 +188,12 @@ export default function PosisiTtdSelf() {
       return;
     }
 
-    // Note: Kita HAPUS pengecekan !signatureData karena kita generate otomatis
-
     Swal.fire({
       title: "Memproses...",
-      text: "Sedang membuat & menempel QR Code",
+      text: "Sedang membuat & menempel QR Code...",
       allowOutsideClick: false,
       showConfirmButton: false,
-      willOpen: () => {
-        Swal.showLoading();
-      },
+      willOpen: () => Swal.showLoading(),
     });
 
     try {
@@ -214,15 +206,15 @@ export default function PosisiTtdSelf() {
         return;
       }
 
-      // 2. Fallback jika ID Dokumen hilang dari localStorage
+      // Fallback ID Dokumen jika hilang dari localStorage
       if (!uploadedDocId) {
-        console.log("⚠️ uploadedDocumentId tidak ada, mencari berdasarkan fileName...");
+        console.log("⚠️ Mencari ID Dokumen berdasarkan nama file...");
         const docsResponse = await fetch(`${API_BASE_URL}/documents/`, {
           method: "GET",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!docsResponse.ok) throw new Error("Gagal mengambil data dokumen");
+        if (!docsResponse.ok) throw new Error("Gagal menghubungi Backend.");
         const docsData = await docsResponse.json();
         
         const targetDoc = docsData.find(
@@ -233,46 +225,54 @@ export default function PosisiTtdSelf() {
         uploadedDocId = targetDoc.document_id;
       }
 
-      // 3. === MAGIC START: GENERATE QR CODE ===
-      // Ambil alamat website (Frontend) saat ini. 
-      const appBaseUrl = window.location.origin; 
-      const verificationLink = `${appBaseUrl}/verif-log/${uploadedDocId}`;
-      
-      console.log("🔗", verificationLink);
+      // === 1. GENERATE LINK QR CODE (VERSI PUBLIC / NGROK) ===
+      // Menggunakan link backend direct agar HP bisa langsung akses
+      const verificationLink = `${BASE_URL_NGROK}/documents/verify/${uploadedDocId}`;
+      console.log("🔗 QR Content (Public):", verificationLink);
 
-      // Buat gambar QR (Base64)
+      // === 2. GENERATE GAMBAR QR CODE ===
       const qrBase64 = await QRCode.toDataURL(verificationLink, { 
         width: 300, 
         margin: 1,
         color: { dark: '#000000', light: '#FFFFFF' }
       });
 
-      // 4. Hitung Koordinat PDF
+      // === 3. HITUNG KOORDINAT POSISI ===
       const iframeRect = iframeRef.current?.getBoundingClientRect();
       const containerRect = containerRef.current.getBoundingClientRect();
+      
+      // Gunakan ukuran iframe jika ada, atau container fallback
       const displayWidth = iframeRect ? iframeRect.width : containerRect.width;
       const displayHeight = iframeRect ? iframeRect.height : containerRect.height;
+      
+      // Hitung skala (PDF Asli vs Layar Browser)
       const scaleX = PDF_WIDTH_POINTS / displayWidth;
       const scaleY = PDF_HEIGHT_POINTS / displayHeight;
 
+      // Koordinat X (Kiri ke Kanan)
       const pdfSigX = signatureArea.x * scaleX;
+      
+      // Koordinat Y (PDF koordinatnya dari Bawah ke Atas, HTML dari Atas ke Bawah)
+      // Jadi kita harus balik (Total Tinggi - Posisi Y - Tinggi Kotak)
       const pdfSigY = (displayHeight - signatureArea.y - signatureArea.height) * scaleY;
+
       const pdfSigWidth = signatureArea.width * scaleX;
       const pdfSigHeight = signatureArea.height * scaleY;
 
-      // 5. Convert QR Base64 ke Blob File
+      // === 4. KIRIM KE BACKEND ===
       const blob = base64ToBlob(qrBase64);
-
-      // 6. Siapkan FormData
       const formData = new FormData();
-      formData.append("signatureImage", blob, "qrcode.png"); // Kirim sebagai signatureImage
+      
+      // Kirim gambar QR sebagai "file" signature
+      formData.append("signatureImage", blob, "qrcode.png"); 
+      
+      // Kirim Koordinat
       formData.append("pageNumber", "1");
       formData.append("x", String(Math.round(pdfSigX)));
       formData.append("y", String(Math.round(pdfSigY)));
       formData.append("width", String(Math.round(pdfSigWidth)));
       formData.append("height", String(Math.round(pdfSigHeight)));
 
-      // 7. Kirim ke Backend
       const response = await fetch(`${API_BASE_URL}/documents/${uploadedDocId}/sign`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -280,29 +280,31 @@ export default function PosisiTtdSelf() {
       });
 
       const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || result.message || "Gagal menempel QR");
-      }
+      if (!response.ok) throw new Error(result.error || result.message || "Gagal menempel QR");
 
       localStorage.setItem("lastSignedDocument", uploadedDocId);
       clearWorkflowFlags();
 
-      // === MODIFIKASI DISINI: TEKS JADI "Detail Dokumen" ===
       await Swal.fire({
         icon: "success",
         title: "Berhasil!",
-        html: `QR Code berhasil ditempel! <br> <small> <a href="${verificationLink}" target="_blank" style="color: blue; text-decoration: underline; font-weight: bold;">Detail Dokumen</a></small>`,
+        html: `QR Code berhasil ditempel sesuai posisi!`,
         confirmButtonColor: "#003E9C",
       });
 
       navigate("/dashboard");
     } catch (error) {
       console.error("❌ QR Process error:", error);
+      
+      let errorMsg = error.message;
+      if (errorMsg.includes("Failed to fetch")) {
+        errorMsg = "Gagal koneksi. Pastikan Backend berjalan.";
+      }
+
       Swal.fire({
         icon: "error",
         title: "Gagal",
-        text: error.message || "Terjadi kesalahan sistem",
+        text: errorMsg,
         confirmButtonColor: "#003E9C",
       });
     }
@@ -312,25 +314,18 @@ export default function PosisiTtdSelf() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col">
       <header className="w-full bg-white shadow-sm py-4 px-6 flex items-center gap-4 sticky top-0 z-20">
         <button
-          onClick={() => {
-            clearWorkflowFlags();
-            navigate(-1);
-          }}
+          onClick={() => { clearWorkflowFlags(); navigate(-1); }}
           className="text-gray-600 hover:text-blue-700 p-2 hover:bg-gray-100 rounded-full transition"
         >
           <FaArrowLeft size={20} />
         </button>
-
         <h1 className="text-lg font-bold text-gray-800">
           Pilih Posisi QR Code - {fileName}
         </h1>
       </header>
 
       <main className="flex-1 flex flex-col p-4 md:p-6">
-        <div
-          className="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
-          style={{ height: "calc(100vh - 200px)" }}
-        >
+        <div className="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" style={{ height: "calc(100vh - 200px)" }}>
           <div
             ref={containerRef}
             className="relative w-full flex-1 overflow-auto bg-gray-100"
@@ -348,11 +343,7 @@ export default function PosisiTtdSelf() {
                     style={{ pointerEvents: clickMode ? "none" : "auto" }}
                   ></iframe>
                 ) : (
-                  <img
-                    src={fileUrl}
-                    alt="Preview Dokumen"
-                    className="w-full h-auto object-contain"
-                  />
+                  <img src={fileUrl} alt="Preview" className="w-full h-auto object-contain" />
                 )}
 
                 {signatureArea && (
@@ -368,55 +359,27 @@ export default function PosisiTtdSelf() {
                     }}
                     onMouseDown={handleMouseDown}
                   >
-                    {/* Visualisasi QR di kotak */}
                     <FaQrcode className="text-5xl text-black opacity-70" />
-
-                    <div
-                      className="absolute bottom-0 right-0 w-7 h-7 bg-blue-500 rounded-tl-lg cursor-nwse-resize flex items-center justify-center hover:bg-blue-600 transition"
-                      onMouseDown={handleResizeMouseDown}
-                    >
+                    <div className="absolute bottom-0 right-0 w-7 h-7 bg-blue-500 rounded-tl-lg cursor-nwse-resize flex items-center justify-center hover:bg-blue-600 transition" onMouseDown={handleResizeMouseDown}>
                       <FaExpand className="text-white text-xs" />
                     </div>
-
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center pointer-events-none shadow-lg">
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
                       <FaCheckCircle className="text-white text-sm" />
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <p className="text-gray-400 text-lg font-medium">
-                    Loading dokumen...
-                  </p>
-                </div>
-              </div>
+              <div className="flex items-center justify-center h-full"><p className="text-gray-400">Loading dokumen...</p></div>
             )}
           </div>
-
+          
           {clickMode === "signature" && !signatureArea && fileUrl && (
-            <div className="bg-blue-50 border-t-2 border-blue-200 px-4 py-3">
-              <p className="text-sm text-blue-700 text-center font-medium">
-                👆 Klik pada dokumen untuk menempatkan <strong>QR Code</strong>
-              </p>
-            </div>
+            <div className="bg-blue-50 border-t-2 border-blue-200 px-4 py-3"><p className="text-sm text-blue-700 text-center font-medium">👆 Klik pada dokumen untuk menempatkan <strong>QR Code</strong></p></div>
           )}
-
           {signatureArea && (
             <div className="bg-green-50 border-t-2 border-green-200 px-4 py-3">
-              <p className="text-sm text-green-700 text-center font-medium">
-                ✅ Posisi QR Code dipilih • Klik tombol di bawah untuk menempel.
-                <button
-                  onClick={() => {
-                    setSignatureArea(null);
-                    setClickMode("signature");
-                  }}
-                  className="ml-2 text-blue-600 underline hover:text-blue-800"
-                >
-                  Pilih Ulang
-                </button>
-              </p>
+              <p className="text-sm text-green-700 text-center font-medium">✅ Posisi dipilih • <button onClick={() => { setSignatureArea(null); setClickMode("signature"); }} className="ml-2 text-blue-600 underline">Pilih Ulang</button></p>
             </div>
           )}
         </div>
@@ -433,19 +396,11 @@ export default function PosisiTtdSelf() {
           </div>
         )}
       </main>
-
       <style>{`
-        @keyframes slide-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slide-up 0.3s ease-out; }
         .signature-box { transition: box-shadow 0.2s ease; }
         .signature-box:hover { box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
-        *::-webkit-scrollbar { width: 10px; height: 10px; }
-        *::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        *::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        *::-webkit-scrollbar-thumb:hover { background: #64748b; }
       `}</style>
     </div>
   );

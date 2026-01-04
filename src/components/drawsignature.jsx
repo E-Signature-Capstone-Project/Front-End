@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import Sidebar from "../components/sidebar";
-import Header from "../components/header";
+import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
 
 export default function DrawSignature() {
   const navigate = useNavigate();
