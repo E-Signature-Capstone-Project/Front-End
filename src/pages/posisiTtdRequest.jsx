@@ -2,102 +2,120 @@ import React, { useEffect, useState, useRef } from "react";
 import { FaArrowLeft, FaCheckCircle, FaExpand } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { Document, Page, pdfjs } from "react-pdf";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export default function PosisiTtdRequest() {
   const navigate = useNavigate();
   const [fileUrl, setFileUrl] = useState(null);
   const [fileName, setFileName] = useState("");
-  const [signatureArea, setSignatureArea] = useState(null);
+  const [signatureArea, setSignatureArea] = useState(null); // relatif ke kanvas Page
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [pdfDimensions, setPdfDimensions] = useState({ width: 0, height: 0 });
-  const containerRef = useRef(null);
-  const iframeRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const wrapperRef = useRef(null); // wrapper scrollable
   const dragStart = useRef({ x: 0, y: 0 });
   const [clickMode, setClickMode] = useState("signature");
+  const [renderWidth, setRenderWidth] = useState(600);
+  const [renderHeight, setRenderHeight] = useState(800);
 
   const API_BASE_URL = "http://localhost:3001";
 
   useEffect(() => {
     const savedFileUrl = localStorage.getItem("uploadedFileUrl");
     const savedFileName = localStorage.getItem("uploadedFileName");
-
     if (savedFileUrl) setFileUrl(savedFileUrl);
     if (savedFileName) setFileName(savedFileName);
   }, []);
 
+  // Sesuaikan lebar render dengan lebar container
   useEffect(() => {
-    if (containerRef.current && fileUrl) {
-      const updateDimensions = () => {
-        const rect = containerRef.current.getBoundingClientRect();
-        setPdfDimensions({
-          width: rect.width,
-          height: rect.height,
-        });
-      };
+    const handleResize = () => {
+      if (!wrapperRef.current) return;
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setRenderWidth(rect.width - 40); // beri sedikit margin kiri/kanan
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-      setTimeout(updateDimensions, 1000);
-      window.addEventListener("resize", updateDimensions);
+  // react-pdf memberi ukuran halaman aktual; dari situ bisa hitung tinggi render
+  const handlePageRenderSuccess = (page) => {
+    const pageRatio = page.height / page.width;
+    setRenderHeight(renderWidth * pageRatio);
+  };
 
-      return () => window.removeEventListener("resize", updateDimensions);
-    }
-  }, [fileUrl]);
+  // ================== PILIH AREA (RELATIF PAGE WRAPPER) ==================
 
   const handleClickArea = (e) => {
     if (!clickMode) return;
     if (isDragging || isResizing) return;
-    if (e.target.tagName === "IFRAME") return;
-    if (e.target.closest(".signature-box")) return;
-    if (!containerRef.current) return;
+    if (!wrapperRef.current) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left + containerRef.current.scrollLeft;
-    const y = e.clientY - rect.top + containerRef.current.scrollTop;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top + wrapperRef.current.scrollTop;
 
-    const defaultWidth = 96;
-    const defaultHeight = 96;
+    if (clickX < 0 || clickY < 0 || clickX > rect.width || clickY > renderHeight) {
+      return;
+    }
+
+    const defaultSize = 70;
 
     const newArea = {
-      x: Math.max(0, x - defaultWidth / 2),
-      y: Math.max(0, y - defaultHeight / 2),
-      width: defaultWidth,
-      height: defaultHeight,
+      x: Math.max(0, clickX - defaultSize / 2),
+      y: Math.max(0, clickY - defaultSize / 2),
+      width: defaultSize,
+      height: defaultSize,
     };
+
+    console.log("🎯 QR Area Selected:", {
+      viewport: { x: newArea.x, y: newArea.y, size: defaultSize },
+      wrapperSize: { width: rect.width, height: renderHeight },
+    });
 
     setSignatureArea(newArea);
     setClickMode(null);
   };
 
+  // ================== DRAG & RESIZE ==================
+
   const handleMouseDown = (e) => {
-    if (!signatureArea) return;
+    if (!signatureArea || !wrapperRef.current) return;
     e.stopPropagation();
     setIsDragging(true);
 
-    const rect = containerRef.current.getBoundingClientRect();
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top + wrapperRef.current.scrollTop;
+
     dragStart.current = {
-      x: e.clientX - rect.left + containerRef.current.scrollLeft - signatureArea.x,
-      y: e.clientY - rect.top + containerRef.current.scrollTop - signatureArea.y,
+      x: clickX - signatureArea.x,
+      y: clickY - signatureArea.y,
     };
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging || !containerRef.current) return;
+    if (!isDragging || !wrapperRef.current || !signatureArea) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const scrollLeft = containerRef.current.scrollLeft;
-    const scrollTop = containerRef.current.scrollTop;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top + wrapperRef.current.scrollTop;
 
-    const newX = e.clientX - rect.left + scrollLeft - dragStart.current.x;
-    const newY = e.clientY - rect.top + scrollTop - dragStart.current.y;
+    const newX = currentX - dragStart.current.x;
+    const newY = currentY - dragStart.current.y;
 
-    const maxX = containerRef.current.scrollWidth - signatureArea.width;
-    const maxY = containerRef.current.scrollHeight - signatureArea.height;
+    const maxX = rect.width - signatureArea.width;
+    const maxY = renderHeight - signatureArea.height;
 
-    setSignatureArea({
-      ...signatureArea,
+    setSignatureArea((prev) => ({
+      ...prev,
       x: Math.max(0, Math.min(newX, maxX)),
       y: Math.max(0, Math.min(newY, maxY)),
-    });
+    }));
   };
 
   const handleMouseUp = () => {
@@ -106,6 +124,7 @@ export default function PosisiTtdRequest() {
   };
 
   const handleResizeMouseDown = (e) => {
+    if (!signatureArea) return;
     e.stopPropagation();
     setIsResizing(true);
     dragStart.current = {
@@ -117,19 +136,24 @@ export default function PosisiTtdRequest() {
   };
 
   const handleResizeMouseMove = (e) => {
-    if (!isResizing) return;
+    if (!isResizing || !wrapperRef.current) return;
 
     const deltaX = e.clientX - dragStart.current.x;
     const deltaY = e.clientY - dragStart.current.y;
 
-    let newWidth = Math.max(60, dragStart.current.width + deltaX);
-    let newHeight = Math.max(60, dragStart.current.height + deltaY);
+    const delta = Math.max(deltaX, deltaY);
+    let newSize = Math.max(40, Math.min(120, dragStart.current.width + delta));
 
-    setSignatureArea({
-      ...signatureArea,
-      width: newWidth,
-      height: newHeight,
-    });
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const maxW = rect.width - signatureArea.x;
+    const maxH = renderHeight - signatureArea.y;
+    newSize = Math.min(newSize, maxW, maxH);
+
+    setSignatureArea((prev) => ({
+      ...prev,
+      width: newSize,
+      height: newSize,
+    }));
   };
 
   useEffect(() => {
@@ -140,13 +164,14 @@ export default function PosisiTtdRequest() {
       document.addEventListener("mousemove", handleResizeMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     }
-
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mousemove", handleResizeMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing, signatureArea]);
+  }, [isDragging, isResizing]);
+
+  // ================== HELPERS ==================
 
   const clearWorkflowFlags = () => {
     localStorage.removeItem("uploadedFileUrl");
@@ -160,6 +185,8 @@ export default function PosisiTtdRequest() {
     localStorage.removeItem("selectedBaselineId");
   };
 
+  // ================== SUBMIT ==================
+
   const handleTempelTandaTangan = async () => {
     if (!signatureArea) {
       Swal.fire({
@@ -171,42 +198,88 @@ export default function PosisiTtdRequest() {
       return;
     }
 
+    if (!wrapperRef.current) {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "PDF viewer belum siap",
+        confirmButtonColor: "#003E9C",
+      });
+      return;
+    }
+
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const displayWidth = rect.width;
+    const displayHeight = renderHeight;
+
+    const ratioX = signatureArea.x / displayWidth; // dari kiri
+    const ratioY = signatureArea.y / displayHeight; // dari atas
+
+    const avgSize = (signatureArea.width + signatureArea.height) / 2;
+    const ratioSize = avgSize / displayWidth;
+
+    const isSquare = Math.abs(signatureArea.width - signatureArea.height) < 2;
+
+    console.log("📤 SENDING TO BACKEND:", {
+      page: currentPage,
+      wrapperSize: { displayWidth, displayHeight },
+      box: { ...signatureArea },
+      ratios: { ratioX, ratioY, ratioSize },
+    });
+
+    const confirmResult = await Swal.fire({
+      title: "Konfirmasi Penempatan QR",
+      html: `
+        <div class="text-left text-sm space-y-3">
+          <div class="bg-blue-50 p-3 rounded border border-blue-200">
+            <p class="font-bold mb-2 text-blue-800">📍 Posisi QR Code:</p>
+            <ul class="text-xs space-y-1">
+              <li>📄 Halaman: <strong>${currentPage}</strong></li>
+              <li>📏 Ukuran kotak: <strong>${Math.round(
+                signatureArea.width
+              )}×${Math.round(signatureArea.height)}px</strong> ${
+        isSquare ? "✅" : "⚠️"
+      }</li>
+              <li>📐 Rasio dari kiri: <strong>${(ratioX * 100).toFixed(
+                1
+              )}%</strong></li>
+              <li>📐 Rasio dari atas: <strong>${(ratioY * 100).toFixed(
+                1
+              )}%</strong></li>
+              <li>📐 Rasio size: <strong>${(ratioSize * 100).toFixed(
+                1
+              )}% lebar halaman</strong></li>
+            </ul>
+          </div>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "✅ Tempel QR",
+      cancelButtonText: "❌ Batal",
+      confirmButtonColor: "#003E9C",
+      width: "650px",
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     Swal.fire({
       title: "Memproses...",
-      text: "Sedang menandatangani dokumen dengan baseline",
+      text: "Menempatkan QR Code...",
       allowOutsideClick: false,
       showConfirmButton: false,
-      willOpen: () => {
-        Swal.showLoading();
-      },
+      willOpen: () => Swal.showLoading(),
     });
 
     try {
       const token = localStorage.getItem("token");
       const uploadedDocId = localStorage.getItem("uploadedDocumentId");
-      const requestId = localStorage.getItem("requestId");
 
-      console.log("🔍 Request signing context:", {
-        uploadedDocId,
-        requestId,
-        hasToken: !!token,
-      });
-
-      if (!token || !requestId) {
-        Swal.fire({
-          icon: "error",
-          title: "Data Request Hilang",
-          text: "Silakan buka ulang dari notifikasi",
-          confirmButtonColor: "#003E9C",
-        });
-        navigate("/notification");
-        return;
-      }
+      if (!token) throw new Error("Token tidak ditemukan");
 
       let documentId = uploadedDocId;
 
       if (!documentId) {
-        console.log("⚠️ uploadedDocumentId tidak ada, mencari berdasarkan fileName...");
         const docsResponse = await fetch(`${API_BASE_URL}/documents/`, {
           method: "GET",
           headers: {
@@ -215,13 +288,9 @@ export default function PosisiTtdRequest() {
           },
         });
 
-        if (!docsResponse.ok) {
-          throw new Error("Gagal mengambil data dokumen");
-        }
+        if (!docsResponse.ok) throw new Error("Gagal mengambil data dokumen");
 
         const docsData = await docsResponse.json();
-        console.log("📦 Documents dari API:", docsData);
-
         const targetDoc = docsData.find(
           (doc) =>
             doc.title === fileName ||
@@ -229,63 +298,47 @@ export default function PosisiTtdRequest() {
             doc.title.includes(fileName.replace(".pdf", ""))
         );
 
-        if (!targetDoc) {
-          throw new Error("Dokumen tidak ditemukan di database");
-        }
-
+        if (!targetDoc) throw new Error("Dokumen tidak ditemukan");
         documentId = targetDoc.document_id;
-        console.log("✅ Dokumen ditemukan dari pencarian:", documentId);
       }
-
-      console.log("✅ Final documentId yang akan dipakai:", documentId);
 
       let baseline_id = localStorage.getItem("selectedBaselineId");
       if (!baseline_id) {
-        const baselineResponse = await fetch(`${API_BASE_URL}/signature_baseline/`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        const baselineResponse = await fetch(
+          `${API_BASE_URL}/signature_baseline/`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
-        if (!baselineResponse.ok) {
+        if (!baselineResponse.ok)
           throw new Error("Tidak dapat mengambil data baseline");
-        }
 
         const baselinesData = await baselineResponse.json();
         const baselines = Array.isArray(baselinesData)
           ? baselinesData
           : baselinesData.baselines || [];
 
-        if (!baselines.length) {
+        if (!baselines.length)
           throw new Error("Anda belum memiliki baseline signature");
-        }
 
         baseline_id = baselines[0].baseline_id;
         localStorage.setItem("selectedBaselineId", baseline_id);
       }
 
-      console.log("📋 Using baseline_id:", baseline_id);
+      const payload = {
+        baseline_id: baseline_id,
+        pageNumber: currentPage,
+        ratioX,
+        ratioY,
+        ratioSize,
+      };
 
-      const iframeRect = iframeRef.current?.getBoundingClientRect();
-      const containerRect = containerRef.current.getBoundingClientRect();
-
-      const displayHeight = iframeRect ? iframeRect.height : containerRect.height;
-
-      // Koordinat viewport: x dari kiri, y dari bawah
-      const pdfSigX = signatureArea.x;
-      const pdfSigY = displayHeight - signatureArea.y - signatureArea.height;
-      const pdfSigWidth = signatureArea.width;
-      const pdfSigHeight = signatureArea.height;
-
-      console.log("📐 Viewport coordinates (sent to backend):", {
-        x: Math.round(pdfSigX),
-        y: Math.round(pdfSigY),
-        width: Math.round(pdfSigWidth),
-        height: Math.round(pdfSigHeight),
-        displayHeight: Math.round(displayHeight),
-      });
+      console.log("📨 Final Payload:", payload);
 
       const response = await fetch(
         `${API_BASE_URL}/documents/${documentId}/sign/external`,
@@ -295,25 +348,15 @@ export default function PosisiTtdRequest() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            baseline_id: baseline_id,
-            pageNumber: 1,
-            x: Math.round(pdfSigX),
-            y: Math.round(pdfSigY),
-            width: Math.round(pdfSigWidth),
-            height: Math.round(pdfSigHeight),
-            displayHeight: Math.round(displayHeight), // dikonversi di backend
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
       const result = await response.json();
-      console.log("📥 Backend response (sign/external):", result);
+      console.log("📥 Backend Response:", result);
 
       if (!response.ok) {
-        throw new Error(
-          result.error || result.message || "Gagal menandatangani dokumen"
-        );
+        throw new Error(result.error || "Gagal menandatangani dokumen");
       }
 
       localStorage.setItem("lastSignedDocument", documentId);
@@ -321,80 +364,93 @@ export default function PosisiTtdRequest() {
 
       await Swal.fire({
         icon: "success",
-        title: "Berhasil!",
-        html: `
-          <p>${result.message || "Dokumen berhasil ditandatangani"}</p>
-          <p class="text-sm text-gray-600 mt-2">✅ QR Code ditambahkan dengan baseline signature</p>
-        `,
+        title: "✅ Berhasil!",
+        html: `<p class="text-lg mb-3">${result.message}</p>`,
         confirmButtonColor: "#003E9C",
       });
 
       navigate("/dashboard");
     } catch (error) {
-      console.error("❌ REQUEST SIGN error:", error);
-      clearWorkflowFlags();
+      console.error("❌ ERROR:", error);
 
       Swal.fire({
         icon: "error",
         title: "Gagal",
-        text:
-          error.message ||
-          "Terjadi kesalahan saat menandatangani dokumen",
+        text: error.message,
         confirmButtonColor: "#003E9C",
       });
     }
   };
 
+  // ================== RENDER ==================
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col">
-      <header className="w-full bg-white shadow-sm py-4 px-6 flex items-center gap-4 sticky top-0 z-20">
-        <button
-          onClick={() => {
-            clearWorkflowFlags();
-            navigate(-1);
-          }}
-          className="text-gray-600 hover:text-blue-700 p-2 hover:bg-gray-100 rounded-full transition"
-        >
-          <FaArrowLeft size={20} />
-        </button>
+      <header className="w-full bg-white shadow-sm py-4 px-6 flex flex-col gap-3 sticky top-0 z-20">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              clearWorkflowFlags();
+              navigate(-1);
+            }}
+            className="text-gray-600 hover:text-blue-700 p-2 hover:bg-gray-100 rounded-full transition"
+          >
+            <FaArrowLeft size={20} />
+          </button>
 
-        <h1 className="text-lg font-bold text-gray-800">
-          Pilih Posisi QR Code - {fileName}
-        </h1>
+          <h1 className="text-lg font-bold text-gray-800">
+            Pilih Posisi QR Code - {fileName}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <span className="text-gray-700 font-medium">Halaman:</span>
+          <input
+            type="number"
+            min={1}
+            value={currentPage}
+            onChange={(e) =>
+              setCurrentPage(Math.max(1, Number(e.target.value) || 1))
+            }
+            className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-xs bg-blue-50 px-2 py-1 rounded text-blue-700">
+            💡 Klik di PDF • Default 70×70px • Drag pindah • Resize pojok
+          </span>
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col p-4 md:p-6">
         <div
           className="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
-          style={{ height: "calc(100vh - 200px)" }}
+          style={{ height: "calc(100vh - 240px)" }}
         >
           <div
-            ref={containerRef}
-            className="relative w-full flex-1 overflow-auto bg-gray-100"
-            style={{ minHeight: "500px" }}
+            ref={wrapperRef}
+            className="relative w-full flex-1 bg-gray-100 overflow-auto"
             onClick={clickMode ? handleClickArea : undefined}
+            style={{ cursor: clickMode ? "crosshair" : "default" }}
           >
             {fileUrl ? (
-              <div className="relative w-full h-full">
-                {fileName.toLowerCase().endsWith(".pdf") ? (
-                  <iframe
-                    ref={iframeRef}
-                    src={fileUrl}
-                    title="Preview PDF"
-                    className="w-full h-full min-h-[1100px] border-none"
-                    style={{ pointerEvents: clickMode ? "none" : "auto" }}
-                  ></iframe>
-                ) : (
-                  <img
-                    src={fileUrl}
-                    alt="Preview Dokumen"
-                    className="w-full h-auto object-contain"
+              <div
+                style={{
+                  position: "relative",
+                  margin: "20px auto",
+                  width: `${renderWidth}px`,
+                  minHeight: `${renderHeight}px`,
+                }}
+              >
+                <Document file={fileUrl}>
+                  <Page
+                    pageNumber={currentPage}
+                    width={renderWidth}
+                    onRenderSuccess={handlePageRenderSuccess}
                   />
-                )}
+                </Document>
 
                 {signatureArea && (
                   <div
-                    className="signature-box absolute border-4 border-blue-500 rounded-lg shadow-2xl cursor-move overflow-hidden bg-white/70"
+                    className="signature-box absolute border-2 border-blue-500 rounded cursor-move bg-blue-100/20"
                     style={{
                       left: `${signatureArea.x}px`,
                       top: `${signatureArea.y}px`,
@@ -405,57 +461,62 @@ export default function PosisiTtdRequest() {
                     }}
                     onMouseDown={handleMouseDown}
                   >
+                    <div className="w-full h-full flex items-center justify-center text-blue-600 font-bold text-xs">
+                      QR
+                    </div>
+
                     <div
-                      className="absolute bottom-0 right-0 w-7 h-7 bg-blue-500 rounded-tl-lg cursor-nwse-resize flex items-center justify-center hover:bg-blue-600 transition"
+                      className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-tl cursor-nwse-resize flex items-center justify-center hover:bg-blue-600"
                       onMouseDown={handleResizeMouseDown}
                     >
-                      <FaExpand className="text-white text-xs" />
+                      <FaExpand className="text-white text-[8px]" />
                     </div>
 
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center pointer-events-none shadow-lg">
-                      <FaCheckCircle className="text-white text-sm" />
+                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center shadow">
+                      <FaCheckCircle className="text-white text-[10px]" />
                     </div>
 
-                    <div className="absolute -bottom-7 left-0 bg-blue-500 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap">
-                      QR • {Math.round(signatureArea.width)} ×{" "}
-                      {Math.round(signatureArea.height)} px
+                    <div className="absolute -bottom-6 left-0 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded shadow whitespace-nowrap">
+                      {Math.round(signatureArea.width)}×
+                      {Math.round(signatureArea.height)}px
                     </div>
                   </div>
                 )}
               </div>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <FaArrowLeft className="text-6xl text-gray-300 mx-auto mb-4 rotate-90" />
-                  <p className="text-gray-400 text-lg font-medium">
-                    Belum ada dokumen
-                  </p>
-                </div>
+                <p className="text-gray-400">Belum ada dokumen</p>
               </div>
             )}
           </div>
 
           {clickMode === "signature" && !signatureArea && fileUrl && (
-            <div className="bg-blue-50 border-t-2 border-blue-200 px-4 py-3">
+            <div className="bg-blue-50 border-t-2 border-blue-200 px-4 py-2">
               <p className="text-sm text-blue-700 text-center font-medium">
-                👆 Klik pada dokumen untuk menempatkan <strong>QR Code</strong>
+                🎯 Klik di dokumen untuk menempatkan QR (70×70px) di Halaman{" "}
+                {currentPage}
               </p>
             </div>
           )}
 
           {signatureArea && (
-            <div className="bg-green-50 border-t-2 border-green-200 px-4 py-3">
-              <p className="text-sm text-green-700 text-center font-medium">
-                ✅ Posisi sudah dipilih • Drag untuk pindah • Resize di pojok
-                kanan bawah •
+            <div className="bg-green-50 border-t-2 border-green-200 px-4 py-2">
+              <p className="text-xs text-green-700 text-center font-medium flex items-center justify-center gap-2 flex-wrap">
+                <span>
+                  ✅ {Math.round(signatureArea.width)}×
+                  {Math.round(signatureArea.height)}px
+                </span>
+                <span>•</span>
+                <span>Drag pindah • Resize pojok</span>
+                <span>•</span>
                 <button
                   onClick={() => {
                     setSignatureArea(null);
                     setClickMode("signature");
                   }}
-                  className="ml-2 text-blue-600 underline hover:text-blue-800"
+                  className="text-blue-600 underline hover:text-blue-800"
                 >
-                  Pilih Ulang
+                  Ulang
                 </button>
               </p>
             </div>
@@ -463,30 +524,27 @@ export default function PosisiTtdRequest() {
         </div>
 
         {signatureArea && (
-          <div className="w-full max-w-5xl mx-auto mt-6 px-4 animate-slide-up">
+          <div className="w-full max-w-5xl mx-auto mt-4 px-4">
             <button
               onClick={handleTempelTandaTangan}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 active:scale-95"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all active:scale-95"
             >
-              <FaCheckCircle className="text-2xl" />
-              <span>Tempel QR Code (Baseline)</span>
+              <FaCheckCircle className="text-xl" />
+              <span>Tempel QR di Halaman {currentPage}</span>
             </button>
           </div>
         )}
       </main>
 
       <style>{`
-        @keyframes slide-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
+        .signature-box { 
+          transition: all 0.2s;
+          border-style: dashed;
         }
-        .animate-slide-up { animation: slide-up 0.3s ease-out; }
-        .signature-box { transition: box-shadow 0.2s ease; }
-        .signature-box:hover { box-shadow: 0 8px 24px rgba(59,130,246,0.4); }
-        *::-webkit-scrollbar { width: 10px; height: 10px; }
-        *::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        *::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        *::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .signature-box:hover { 
+          border-color: #2563eb;
+          background: rgba(59, 130, 246, 0.1);
+        }
       `}</style>
     </div>
   );
